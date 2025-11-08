@@ -52,10 +52,9 @@ export default function AdminDashboard() {
 
     // User is authorized
     setIsAuthorized(true)
-
     setUser(parsedUser)
     fetchDashboardData()
-  }, [router])
+  }, []) // Remove router dependency to prevent re-fetching
 
   const fetchDashboardData = async () => {
     try {

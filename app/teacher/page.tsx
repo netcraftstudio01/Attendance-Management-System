@@ -123,10 +123,9 @@ export default function TeacherDashboard() {
 
     // User is authorized
     setIsAuthorized(true)
-
     setUser(parsedUser)
     fetchTeacherData(parsedUser.id)
-  }, [router])
+  }, []) // Remove router dependency to prevent re-fetching
 
   const fetchTeacherData = async (teacherId: string) => {
     try {

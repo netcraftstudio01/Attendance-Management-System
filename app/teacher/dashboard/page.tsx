@@ -106,7 +106,7 @@ export default function TeacherDashboard() {
     fetchAssignments(user.id)
     fetchActiveSessions(user.id)
     fetchAllSessions(user.id)
-  }, [router])
+  }, []) // Remove router dependency
 
   // Timer for counting down session expiry with auto-expire after 5 minutes
   useEffect(() => {

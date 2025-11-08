@@ -159,7 +159,7 @@ export default function AdminManagementPage() {
     setIsAuthorized(true)
     setUser(parsedUser)
     fetchAllData()
-  }, [router])
+  }, []) // Remove router dependency
 
   const fetchAllData = async () => {
     setFetching(true)
