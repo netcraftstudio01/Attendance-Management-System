@@ -4,7 +4,14 @@ import { supabase } from '@/lib/supabase'
 // Test endpoint to check database tables
 export async function GET() {
   try {
-    const results: any = {}
+    const results: Record<string, {
+      success?: boolean;
+      count?: number;
+      sample?: unknown;
+      error?: string;
+      exists?: boolean;
+      sampleData?: unknown;
+    }> = {}
 
     // Test classes table
     const { data: classes, error: classError } = await supabase
@@ -60,10 +67,10 @@ export async function GET() {
       message: 'Database test completed',
       tables: results,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Test error:', error)
     return NextResponse.json(
-      { error: error.message || 'Test failed' },
+      { error: error instanceof Error ? error.message : 'Test failed' },
       { status: 500 }
     )
   }

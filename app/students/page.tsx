@@ -22,7 +22,27 @@ export default function StudentAttendancePage() {
   const [email, setEmail] = useState("")
   const [otp, setOtp] = useState("")
   const [sessionCode, setSessionCode] = useState("")
-  const [sessionData, setSessionData] = useState<any>(null)
+  const [sessionData, setSessionData] = useState<{
+    sessionId: string;
+    sessionCode?: string;
+    expiresAt?: string;
+    year?: number;
+    date?: string;
+    classInfo?: { class_name: string; section: string };
+    subjectInfo?: { subject_name: string; subject_code: string };
+    subject_name?: string;
+    subject?: string;
+    subject_code?: string;
+    credits?: number;
+    semester?: number;
+    teacher_name?: string;
+    teacher_department?: string;
+    teacher_email?: string;
+    class_name?: string;
+    className?: string;
+    section?: string;
+    remainingSeconds?: number;
+  } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
@@ -45,7 +65,7 @@ export default function StudentAttendancePage() {
 
     const interval = setInterval(() => {
       const now = new Date().getTime()
-      const expiresAt = new Date(sessionData.expiresAt).getTime()
+      const expiresAt = new Date(sessionData.expiresAt!).getTime()
       const diff = Math.max(0, Math.floor((expiresAt - now) / 1000))
       
       setTimeRemaining(diff)
@@ -514,7 +534,7 @@ export default function StudentAttendancePage() {
                           Camera Not Available
                         </p>
                         <p className="text-sm text-amber-800 mb-2">
-                          QR scanner requires HTTPS. Please use <strong>"Enter Session Code Manually"</strong> button below.
+                          QR scanner requires HTTPS. Please use <strong>&quot;Enter Session Code Manually&quot;</strong> button below.
                         </p>
                         <p className="text-xs text-amber-700">
                           Your teacher will provide the session code.
@@ -965,7 +985,7 @@ export default function StudentAttendancePage() {
                       </p>
                       <p className="text-sm">
                         <span className="font-medium">Date:</span>{" "}
-                        {new Date(sessionData.date).toLocaleDateString()}
+                        {sessionData.date ? new Date(sessionData.date).toLocaleDateString() : 'N/A'}
                       </p>
                     </div>
                   )}

@@ -187,7 +187,7 @@ export default function StudentAttendance() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Verify Your Email</h3>
                 <p className="text-sm text-muted-foreground">
-                  We'll send an OTP to verify your identity
+                  We&apos;ll send an OTP to verify your identity
                 </p>
               </div>
 

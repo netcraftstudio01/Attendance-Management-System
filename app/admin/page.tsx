@@ -32,7 +32,13 @@ export default function AdminDashboard() {
     todayAttendance: 0,
     attendanceRate: 0,
   })
-  const [recentAttendance, setRecentAttendance] = useState<any[]>([])
+  const [recentAttendance, setRecentAttendance] = useState<Array<{
+    id: string;
+    users?: { name: string; email: string };
+    subject: string;
+    created_at: string;
+    status: string;
+  }>>([])
   const [loading, setLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
 

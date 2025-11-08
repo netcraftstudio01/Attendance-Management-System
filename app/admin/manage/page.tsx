@@ -133,7 +133,7 @@ export default function AdminManagementPage() {
   // Dialog states
   const [showDialog, setShowDialog] = useState(false)
   const [dialogMode, setDialogMode] = useState<"add" | "edit">("add")
-  const [selectedItem, setSelectedItem] = useState<any>(null)
+  const [selectedItem, setSelectedItem] = useState<Class | Subject | Teacher | Student | Assignment | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [generatedPassword, setGeneratedPassword] = useState("")
   const [showViewDialog, setShowViewDialog] = useState(false)
@@ -261,7 +261,7 @@ export default function AdminManagementPage() {
     setShowDialog(true)
   }
 
-  const openEditDialog = (item: any) => {
+  const openEditDialog = (item: Class | Subject | Teacher | Student | Assignment) => {
     setDialogMode("edit")
     setSelectedItem(item)
     setShowDialog(true)
@@ -788,7 +788,7 @@ export default function AdminManagementPage() {
                   {classes.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center text-muted-foreground">
-                        No classes found. Click "Add Class" to create one.
+                        No classes found. Click &quot;Add Class&quot; to create one.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -852,7 +852,7 @@ export default function AdminManagementPage() {
                   {subjects.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No subjects found. Click "Add Subject" to create one.
+                        No subjects found. Click &quot;Add Subject&quot; to create one.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -919,7 +919,7 @@ export default function AdminManagementPage() {
                   {teachers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center text-muted-foreground">
-                        No teachers found. Click "Add Teacher" to create one.
+                        No teachers found. Click &quot;Add Teacher&quot; to create one.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1008,7 +1008,7 @@ export default function AdminManagementPage() {
                   {students.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center text-muted-foreground">
-                        No students found. Click "Add Student" or "Import Excel" to add students.
+                        No students found. Click &quot;Add Student&quot; or &quot;Import Excel&quot; to add students.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1091,7 +1091,7 @@ export default function AdminManagementPage() {
                   {assignments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center text-muted-foreground">
-                        No assignments found. Click "New Assignment" to create one.
+                        No assignments found. Click &quot;New Assignment&quot; to create one.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1522,7 +1522,7 @@ export default function AdminManagementPage() {
                 </div>
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
                   <p className="text-xs text-yellow-800">
-                    ⚠️ <strong>Important:</strong> Copy this password now! It won't be shown again.
+                    ⚠️ <strong>Important:</strong> Copy this password now! It won&apos;t be shown again.
                   </p>
                 </div>
               </div>
@@ -1747,7 +1747,7 @@ export default function AdminManagementPage() {
                 <li>• <strong>address</strong> (optional)</li>
                 <li>• <strong>parent_name</strong> (optional)</li>
                 <li>• <strong>parent_phone</strong> (optional)</li>
-                <li>• <strong>status</strong> (optional, "active" or "inactive")</li>
+                <li>• <strong>status</strong> (optional, &quot;active&quot; or &quot;inactive&quot;)</li>
               </ul>
               <Button
                 variant="link"
