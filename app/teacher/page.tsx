@@ -146,8 +146,9 @@ export default function TeacherDashboard() {
         .eq("teacher_id", teacherId)
 
       if (assignError) {
-        console.error("Error fetching assignments:", assignError)
-      } else if (assignmentsData) {
+        console.error("❌ Error fetching assignments:", assignError)
+        setError("Failed to load your assignments. Please contact admin.")
+      } else if (assignmentsData && assignmentsData.length > 0) {
         // Transform the data
         const formattedAssignments = assignmentsData.map((assignment: any) => ({
           id: assignment.id,
@@ -160,6 +161,11 @@ export default function TeacherDashboard() {
         }))
         setAssignments(formattedAssignments)
         console.log("✅ Loaded assignments:", formattedAssignments)
+      } else {
+        // No assignments found
+        console.log("ℹ️ No assignments found for teacher:", teacherId)
+        console.log("📌 Please ask admin to assign you to classes and subjects")
+        setAssignments([])
       }
 
       // Check for active session
