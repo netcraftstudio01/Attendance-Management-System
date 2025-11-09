@@ -53,6 +53,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // First, let's check if teacher has any sessions at all (debug)
+    console.log("🔍 Debug - Searching sessions for teacher:", teacherId)
+    console.log("🔍 Debug - Date range:", { startDate: startDate.toISOString(), endDate: endDate.toISOString() })
+    
+    const { data: allSessions, error: debugError } = await supabase
+      .from("attendance_sessions")
+      .select("*")
+      .eq("teacher_id", teacherId)
+      .limit(5)
+    
+    console.log("🔍 Debug - Teacher has total sessions:", allSessions?.length || 0)
+    if (allSessions?.length > 0) {
+      console.log("🔍 Debug - Sample session:", allSessions[0])
+    }
+
     // Fetch sessions for the teacher within date range
     let sessionsQuery = supabase
       .from("attendance_sessions")
@@ -62,9 +77,19 @@ export async function GET(request: NextRequest) {
         subjects (id, subject_name, subject_code, credits)
       `)
       .eq("teacher_id", teacherId)
-      .gte("created_at", startDate.toISOString())
-      .lte("created_at", endDate.toISOString())
-      .order("created_at", { ascending: false })
+
+    // Only apply date filter if dates are provided, otherwise get all sessions
+    if (dateFrom && dateTo) {
+      sessionsQuery = sessionsQuery
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString())
+    } else if (period) {
+      sessionsQuery = sessionsQuery
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString())
+    }
+    
+    sessionsQuery = sessionsQuery.order("created_at", { ascending: false })
 
     if (classId) {
       sessionsQuery = sessionsQuery.eq("class_id", classId)
@@ -80,11 +105,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: sessionsError.message }, { status: 500 })
     }
 
+    console.log("🔍 Debug - Query returned sessions:", sessions?.length || 0)
+    
     if (!sessions || sessions.length === 0) {
+      // Check if teacher exists and has any assignments
+      const { data: teacherCheck } = await supabase
+        .from("users")
+        .select("*, teacher_subjects(*, classes(class_name), subjects(subject_name))")
+        .eq("id", teacherId)
+        .single()
+      
+      console.log("🔍 Debug - Teacher check:", teacherCheck)
+      
       return NextResponse.json({
         success: true,
-        message: "No attendance sessions found for the selected period",
+        message: (allSessions && allSessions.length > 0) 
+          ? `No sessions found for the selected date range. Teacher has ${allSessions.length} total sessions.`
+          : "No attendance sessions found. Please create an attendance session first by generating a QR code in the teacher dashboard.",
         sessions: [],
+        debug: {
+          teacherId,
+          dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+          totalTeacherSessions: allSessions?.length || 0,
+          hasTeacherAssignments: teacherCheck?.teacher_subjects?.length || 0
+        },
         summary: {
           total_sessions: 0,
           total_students_marked: 0,
