@@ -411,12 +411,22 @@ export default function StudentAttendancePage() {
         throw new Error("Email mismatch. Please use the same email.")
       }
 
-      // Check if OTP matches
-      if (otpData.otp !== otp) {
-        console.error("❌ OTP mismatch")
-        console.error("   Expected:", otpData.otp)
-        console.error("   Entered:", otp)
-        throw new Error("Invalid OTP. Please check and try again.")
+      // Verify OTP with server instead of localStorage
+      const otpVerifyResponse = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.toLowerCase(),
+          otp: otp
+        }),
+      })
+
+      const otpVerifyData = await otpVerifyResponse.json()
+
+      if (!otpVerifyResponse.ok) {
+        throw new Error(otpVerifyData.error || "OTP verification failed")
       }
 
       console.log("✅ OTP verified successfully!")
