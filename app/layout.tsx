@@ -29,7 +29,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
         suppressHydrationWarning
       >
-        <div className="min-h-screen pb-16">
+        <div className="min-h-screen pb-14">
           {children}
         </div>
         <Footer />
