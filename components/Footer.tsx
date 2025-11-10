@@ -8,7 +8,7 @@ export function Footer() {
         {/* Desktop Layout - Single Row */}
         <div className="hidden md:flex items-center justify-between min-h-[40px]">
           {/* Left: Copyright */}
-          <div className="flex items-center">
+          <div className="flex items-center flex-shrink-0">
             <p className="text-sm font-medium tracking-wide">
               © 2025{" "}
               <span className="font-bold text-white">KPRCAS</span>
@@ -20,60 +20,57 @@ export function Footer() {
             </p>
           </div>
           
-          {/* Center: Contact */}
-          <div className="flex items-center space-x-2 text-xs text-gray-300">
+          {/* Center: Contact - Compact */}
+          <div className="flex items-center justify-center space-x-1 text-xs text-gray-300 flex-shrink min-w-0">
             <Mail className="h-3 w-3 text-blue-400 flex-shrink-0" />
-            <span>Contact:</span>
             <a 
               href="mailto:netcraftstudio01@gmail.com" 
-              className="text-blue-400 hover:text-blue-300 transition-colors duration-200 underline decoration-1 underline-offset-2 font-medium"
+              className="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-medium truncate"
             >
               netcraftstudio01@gmail.com
             </a>
           </div>
           
           {/* Right: Built with love */}
-          <div className="flex items-center space-x-1 text-xs text-gray-400">
+          <div className="flex items-center space-x-1 text-xs text-gray-400 flex-shrink-0">
             <span>Built with</span>
             <Heart className="h-3 w-3 text-red-500 fill-red-500 animate-pulse flex-shrink-0" />
             <span>for KPRCAS</span>
           </div>
         </div>
 
-        {/* Mobile Layout - Stacked */}
-        <div className="flex md:hidden flex-col items-center justify-center space-y-2 min-h-[60px] text-center">
-          {/* Copyright */}
-          <div className="flex items-center">
+        {/* Mobile Layout - Compact Stacked */}
+        <div className="flex md:hidden flex-col items-center justify-center space-y-1 min-h-[50px] text-center">
+          {/* Top row: Copyright and Powered by */}
+          <div className="flex flex-col items-center space-y-1">
             <p className="text-sm font-medium tracking-wide">
               © 2025{" "}
               <span className="font-bold text-white">KPRCAS</span>
             </p>
-          </div>
-          
-          {/* Powered by and Contact in one line */}
-          <div className="flex flex-col items-center space-y-1">
-            <p className="text-xs">
+            <p className="text-xs text-gray-300">
               Powered by{" "}
               <span className="font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 NetCraftStudio
               </span>
             </p>
-            <div className="flex items-center space-x-2 text-xs text-gray-300">
+          </div>
+          
+          {/* Bottom row: Contact and Built with love */}
+          <div className="flex items-center justify-center space-x-4 text-xs">
+            <div className="flex items-center space-x-1 text-gray-300">
               <Mail className="h-3 w-3 text-blue-400" />
               <a 
                 href="mailto:netcraftstudio01@gmail.com" 
-                className="text-blue-400 hover:text-blue-300 transition-colors duration-200 underline decoration-1 underline-offset-2"
+                className="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-medium"
               >
-                netcraftstudio01@gmail.com
+                Contact
               </a>
             </div>
-          </div>
-          
-          {/* Built with love */}
-          <div className="flex items-center space-x-1 text-xs text-gray-400">
-            <span>Built with</span>
-            <Heart className="h-3 w-3 text-red-500 fill-red-500 animate-pulse" />
-            <span>for KPRCAS</span>
+            <div className="flex items-center space-x-1 text-gray-400">
+              <span>Built with</span>
+              <Heart className="h-3 w-3 text-red-500 fill-red-500 animate-pulse" />
+              <span>for KPRCAS</span>
+            </div>
           </div>
         </div>
       </div>
