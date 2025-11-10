@@ -61,7 +61,22 @@ export default function StudentAttendancePage() {
 
   // Timer for session expiry countdown
   useEffect(() => {
-    if (!sessionData || !sessionData.expiresAt) return
+    if (!sessionData || !sessionData.expiresAt) {
+      console.log("❌ No session data or expiresAt found for timer:", { sessionData: !!sessionData, expiresAt: sessionData?.expiresAt })
+      return
+    }
+
+    console.log("⏰ Starting timer with session data:", {
+      sessionId: sessionData.sessionId,
+      expiresAt: sessionData.expiresAt,
+      remainingSeconds: sessionData.remainingSeconds
+    })
+
+    // Initialize with remaining seconds if available
+    if (sessionData.remainingSeconds !== undefined) {
+      setTimeRemaining(sessionData.remainingSeconds)
+      console.log("⏱️ Initial timer set to:", sessionData.remainingSeconds, "seconds")
+    }
 
     const interval = setInterval(() => {
       const now = new Date().getTime()
@@ -69,17 +84,21 @@ export default function StudentAttendancePage() {
       const diff = Math.max(0, Math.floor((expiresAt - now) / 1000))
       
       setTimeRemaining(diff)
+      console.log("⏱️ Timer update:", diff, "seconds remaining")
 
       // Mark as expired when time runs out
-      if (diff === 0) {
+      if (diff === 0 && !sessionExpired) {
         setSessionExpired(true)
         showToast("Session has expired!", "error")
         console.log("⏰ Session expired - attendance can no longer be marked")
       }
     }, 1000)
 
-    return () => clearInterval(interval)
-  }, [sessionData])
+    return () => {
+      clearInterval(interval)
+      console.log("🔄 Timer cleanup completed")
+    }
+  }, [sessionData, sessionExpired, showToast])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -134,17 +153,72 @@ export default function StudentAttendancePage() {
           qrbox: { width: 250, height: 250 }, // Scanning box size
           aspectRatio: 1.0,
         },
-        (decodedText) => {
+        async (decodedText) => {
           // Success callback when QR code is scanned
           try {
             const scannedData = JSON.parse(decodedText)
-            setSessionData(scannedData)
+            console.log("📱 QR Code scanned:", scannedData)
+            
+            // If the QR code contains only basic session info, we need to fetch complete details
+            if (scannedData.sessionCode || scannedData.sessionId) {
+              console.log("🔄 Fetching complete session details...")
+              
+              // Use sessionCode to get complete session details including timer info
+              const sessionCode = scannedData.sessionCode || scannedData.session_code
+              
+              if (sessionCode) {
+                const response = await fetch(`/api/attendance/verify-session`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ sessionCode }),
+                })
+
+                const data = await response.json()
+
+                if (response.ok) {
+                  // Set complete session data with timer info
+                  const completeSessionData = {
+                    sessionId: data.session.id,
+                    sessionCode: data.session.session_code,
+                    className: data.session.class_name,
+                    class_name: data.session.class_name,
+                    section: data.session.section,
+                    year: data.session.year,
+                    subject: data.session.subject_name,
+                    subject_name: data.session.subject_name,
+                    subject_code: data.session.subject_code,
+                    credits: data.session.credits,
+                    semester: data.session.semester,
+                    teacher_name: data.session.teacher_name,
+                    teacher_email: data.session.teacher_email,
+                    teacher_department: data.session.teacher_department,
+                    date: data.session.session_date,
+                    expiresAt: data.session.expires_at,
+                    remainingSeconds: data.session.remaining_seconds,
+                  }
+                  
+                  setSessionData(completeSessionData)
+                  console.log("✅ Complete session data set:", completeSessionData)
+                } else {
+                  throw new Error(data.error || "Failed to fetch session details")
+                }
+              } else {
+                // Fallback to scanned data if no sessionCode
+                setSessionData(scannedData)
+              }
+            } else {
+              // Use scanned data as-is
+              setSessionData(scannedData)
+            }
+            
             showToast("QR Code scanned successfully!", "success")
             setStep("email")
             stopScanning()
           } catch (e) {
-            console.error("Invalid QR code format:", e)
-            showToast("Invalid QR code format", "error")
+            console.error("Invalid QR code format or fetch error:", e)
+            showToast("Invalid QR code or connection error", "error")
           }
         },
         (errorMessage) => {
