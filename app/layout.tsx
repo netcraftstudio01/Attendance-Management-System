@@ -16,6 +16,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "KPRCAS Attendance Management",
   description: "Modern QR code-based attendance management system for KPRCAS College - Powered by NetCraftStudio",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+    viewportFit: "cover",
+  },
 };
 
 export default function RootLayout({
@@ -29,7 +36,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
         suppressHydrationWarning
       >
-        <div className="min-h-screen pb-14">
+        <div className="min-h-screen pb-16 sm:pb-14">
           {children}
         </div>
         <Footer />

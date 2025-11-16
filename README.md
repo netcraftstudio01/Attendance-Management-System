@@ -1721,6 +1721,3 @@ console.log("Component rendered:", componentName)
 **Built with ❤️ for KPRCAS** 🎓  
 *A modern, secure, and blazing-fast attendance management system*
 
-
-
-now the check the it will some error on the teacher page check and solve 
