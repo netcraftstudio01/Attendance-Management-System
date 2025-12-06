@@ -276,6 +276,12 @@ export default function AdminManagementPage() {
     setSelectedItem(null)
     setGeneratedPassword("")
     setShowPassword(false)
+    setLoading(false)
+    // Reset schedule fields
+    setAutoSessionEnabled(false)
+    setSelectedDayOfWeek("")
+    setSelectedStartTime("")
+    setSelectedEndTime("")
   }
 
   // Class CRUD operations
@@ -1149,7 +1155,7 @@ export default function AdminManagementPage() {
 
       {/* Dialog for Add/Edit */}
       <Dialog open={showDialog} onOpenChange={closeDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {dialogMode === "add" ? "Add" : "Edit"} {activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(1, -1)}
@@ -1511,7 +1517,10 @@ export default function AdminManagementPage() {
                             type="checkbox"
                             id="auto_session_enabled"
                             checked={autoSessionEnabled}
-                            onChange={(e) => setAutoSessionEnabled(e.target.checked)}
+                            onChange={(e) => {
+                              console.log('Auto-session checkbox changed:', e.target.checked)
+                              setAutoSessionEnabled(e.target.checked)
+                            }}
                             className="h-4 w-4"
                           />
                           <Label htmlFor="auto_session_enabled" className="text-sm cursor-pointer">
@@ -1520,7 +1529,8 @@ export default function AdminManagementPage() {
                         </div>
 
                         {autoSessionEnabled && (
-                          <>
+                          <div className="space-y-3 pl-6 border-l-2 border-blue-300">
+                            <p className="text-xs text-blue-600 font-medium">📌 Schedule Configuration</p>
                             <div>
                               <Label htmlFor="day_of_week">Day of Week</Label>
                               <Select value={selectedDayOfWeek} onValueChange={setSelectedDayOfWeek}>
@@ -1563,7 +1573,7 @@ export default function AdminManagementPage() {
                             <div className="bg-blue-50 p-3 rounded text-xs text-blue-800">
                               ℹ️ Session will automatically start 5 minutes before the scheduled time and the QR code + session code will be emailed to the teacher.
                             </div>
-                          </>
+                          </div>
                         )}
                       </div>
                     </div>

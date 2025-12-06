@@ -814,7 +814,7 @@
   .mobile-nav,
   .fab,
   .toast {
-    @apply hidden !important;
+    display: none !important;
   }
 
   a[href]:after {

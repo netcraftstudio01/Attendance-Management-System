@@ -100,6 +100,63 @@ export default function TeacherDashboard() {
   const [loadingReport, setLoadingReport] = useState(false)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [error, setError] = useState("")
+  
+  // Live attendance tracking
+  const [liveAttendance, setLiveAttendance] = useState<{
+    present: number
+    totalStudents: number
+    lastUpdated: string
+  } | null>(null)
+
+  // Fetch live attendance for active session
+  const fetchLiveAttendance = async (sessionId: string) => {
+    try {
+      // Get total students in the class
+      const session = activeSession
+      if (!session) return
+
+      const { data: studentsData, error: studentsError } = await supabase
+        .from("students")
+        .select("id", { count: "exact", head: true })
+        .eq("class_id", session.class_id)
+
+      // Get present count for this session
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from("attendance_records")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", sessionId)
+        .eq("status", "present")
+
+      if (!studentsError && !attendanceError) {
+        setLiveAttendance({
+          present: attendanceData || 0,
+          totalStudents: studentsData || 0,
+          lastUpdated: new Date().toLocaleTimeString(),
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching live attendance:", error)
+    }
+  }
+
+  // Auto-refresh live attendance when session is active
+  useEffect(() => {
+    if (!activeSession || activeSession.status !== 'active') {
+      setLiveAttendance(null)
+      return
+    }
+
+    // Fetch immediately
+    fetchLiveAttendance(activeSession.id)
+
+    // Set up interval to refresh every 3 seconds
+    const interval = setInterval(() => {
+      fetchLiveAttendance(activeSession.id)
+    }, 3000)
+
+    // Cleanup on unmount or when session changes
+    return () => clearInterval(interval)
+  }, [activeSession])
 
   useEffect(() => {
     // Check authentication immediately
@@ -629,6 +686,39 @@ export default function TeacherDashboard() {
                     <div className="text-xs sm:text-sm text-muted-foreground">
                       Session Code: {activeSession.session_code}
                     </div>
+                    
+                    {/* Live Attendance Counter */}
+                    {liveAttendance && (
+                      <div className="mt-4 p-3 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">🔴 Live Attendance</p>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl font-bold text-green-600">
+                                {liveAttendance.present}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                / {liveAttendance.totalStudents} students
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Updated: {liveAttendance.lastUpdated}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                              <CheckCircle className="h-6 w-6 text-green-600" />
+                            </div>
+                            <p className="text-[10px] text-green-600 font-medium mt-1">
+                              {liveAttendance.totalStudents > 0 
+                                ? `${Math.round((liveAttendance.present / liveAttendance.totalStudents) * 100)}%`
+                                : '0%'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <Button
                     className="w-full text-sm sm:text-base"
