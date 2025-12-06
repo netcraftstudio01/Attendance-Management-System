@@ -200,6 +200,98 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // PART 2: Send "Session Started" alerts for sessions starting NOW
+    // ═══════════════════════════════════════════════════════════════
+
+    console.log('\n🔔 Checking for sessions that are starting NOW...')
+
+    // Find sessions that are starting right now (within ±2 minutes)
+    const { data: activeSessions, error: activeSessionsError } = await supabase
+      .from('attendance_sessions')
+      .select(`
+        id,
+        session_code,
+        status,
+        created_at,
+        teacher_id,
+        class_id,
+        subject_id,
+        users!teacher_id(id, name, email),
+        classes!class_id(id, class_name, section),
+        subjects!subject_id(id, subject_code, subject_name)
+      `)
+      .eq('status', 'active')
+      .gte('created_at', new Date(now.getTime() - 10 * 60000).toISOString()) // Sessions created in last 10 minutes
+      .lte('created_at', new Date(now.getTime()).toISOString())
+
+    const sessionAlerts = []
+    
+    if (!activeSessionsError && activeSessions && activeSessions.length > 0) {
+      console.log(`Found ${activeSessions.length} active session(s) to check`)
+
+      for (const session of activeSessions) {
+        try {
+          const teacher = session.users as any
+          const classData = session.classes as any
+          const subject = session.subjects as any
+
+          // Calculate when session was created
+          const sessionCreatedAt = new Date(session.created_at)
+          const minutesSinceCreation = (now.getTime() - sessionCreatedAt.getTime()) / 60000
+
+          // Send alert if session was created about 5 minutes ago (session is starting now)
+          // Check if it's between 4-6 minutes since creation
+          if (minutesSinceCreation >= 4 && minutesSinceCreation <= 7) {
+            // Check if we've already sent a start alert (to avoid duplicates)
+            // We'll use a simple check: if session is older than 6 minutes, skip
+            if (minutesSinceCreation > 6) {
+              console.log(`Skipping alert for session ${session.session_code} - too old`)
+              continue
+            }
+
+            console.log(`Sending session started alert for ${teacher.name} - ${subject.subject_code}`)
+
+            try {
+              const alertResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/teacher/send-session-started-alert`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: session.id })
+              })
+
+              const alertResult = await alertResponse.json()
+
+              if (alertResult.success) {
+                console.log(`✅ Session started alert sent to ${teacher.email}`)
+                sessionAlerts.push({
+                  teacher: teacher.name,
+                  email: teacher.email,
+                  class: `${classData.class_name} ${classData.section || ''}`,
+                  subject: `${subject.subject_code} - ${subject.subject_name}`,
+                  session_code: session.session_code,
+                  alert_sent: true
+                })
+              } else {
+                console.error(`Failed to send alert to ${teacher.email}:`, alertResult.error)
+                errors.push({
+                  teacher: teacher.name,
+                  error: `Alert failed: ${alertResult.error}`
+                })
+              }
+            } catch (alertError) {
+              console.error(`Error sending alert to ${teacher.email}:`, alertError)
+              errors.push({
+                teacher: teacher.name,
+                error: `Alert exception: ${alertError instanceof Error ? alertError.message : 'Unknown'}`
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Error processing session alert:', error)
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: `Scheduled session check completed`,
@@ -210,6 +302,8 @@ export async function GET(request: NextRequest) {
       triggered: assignmentsToTrigger.length,
       created: createdSessions.length,
       sessions: createdSessions,
+      alerts_sent: sessionAlerts.length,
+      session_alerts: sessionAlerts.length > 0 ? sessionAlerts : undefined,
       errors: errors.length > 0 ? errors : undefined
     })
 

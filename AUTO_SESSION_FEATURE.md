@@ -19,16 +19,28 @@ When assigning a teacher to a class and subject, admins can now:
   1. Creates an attendance session
   2. Generates a unique session code
   3. Generates a QR code
-  4. Sends an email to the teacher with both codes
+  4. **Sends first email to teacher** with QR code and session code
   5. Session is active for 5 minutes
+- When class actually starts (at scheduled time), it:
+  1. **Sends second alert email** notifying teacher that session is now live
+  2. Reminds teacher of session code
+  3. Provides urgent notification to start taking attendance
 
 ### 3. Teacher Experience
-Teachers receive an email containing:
+Teachers receive **TWO emails**:
+
+**Email 1 - 5 minutes before class (Preparation):**
 - Session code
 - QR code (as an image)
 - Class and subject details
 - Expiration time
 - Instructions for students
+
+**Email 2 - When class starts (Alert/Reminder):**
+- 🔔 Urgent notification that class has started
+- Session code reminder
+- Expiration time reminder
+- Call to action to announce session code to students
 
 ## Database Changes
 

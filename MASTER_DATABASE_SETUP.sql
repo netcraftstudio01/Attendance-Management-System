@@ -1121,7 +1121,7 @@ The system includes automatic session creation. To enable it:
 
 2. On Other Platforms:
    - Set up a cron job to call: /api/cron/create-scheduled-sessions
-   - Run every 3 minutes: */3 * * * *
+   - Run every 3 minutes: * / 3 * * * * (remove spaces)
    - Include Authorization header: Bearer YOUR_CRON_SECRET
    - Example cURL:
      curl -H "Authorization: Bearer your-secret-key" \
