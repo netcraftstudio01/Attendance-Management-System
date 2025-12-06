@@ -38,6 +38,7 @@
 - **Class management** - Create classes with sections and years
 - **Subject management** - Add subjects with codes, credits, semesters
 - **Assignment system** - Assign teachers to classes and subjects
+- **📅 Auto-Session Scheduling** - Schedule automatic session creation with email delivery
 - **Excel import** - Bulk upload students via Excel
 - **Analytics** - View attendance statistics and reports
 - **System monitoring** - Track active sessions and attendance rates
@@ -45,6 +46,7 @@
 ### 👩‍🏫 Teacher Dashboard (Enhanced)
 - **🌟 Featured Assignments** - All assigned classes/subjects visible immediately upon login
 - **QR code generation** - Create unique QR codes for each class session
+- **📧 Auto-Session Emails** - Receive QR codes and session codes automatically before class
 - **Live attendance tracking** - Real-time student attendance monitoring
 - **Session management** - Start, monitor, and complete sessions
 - **Quick actions** - Generate QR directly from class cards
@@ -382,17 +384,22 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 GMAIL_USER=your_gmail@gmail.com
 GMAIL_APP_PASSWORD=your_16_digit_app_password
+CRON_SECRET=your-random-secret-key  # For auto-session feature
+NEXT_PUBLIC_APP_URL=http://localhost:3000  # Change to your domain in production
 
-# 4. Set up database
+# 4. Install type definitions for auto-session feature
+npm install --save-dev @types/qrcode
+
+# 5. Set up database
 # Go to Supabase SQL Editor
-# Copy entire content of DATABASE_SETUP_COMPLETE.sql
+# Copy entire content of MASTER_DATABASE_SETUP.sql
 # Paste and click RUN
 # This creates all tables + default admin user
 
-# 5. Start development server
+# 6. Start development server
 npm run dev
 
-# 6. Login as admin
+# 7. Login as admin
 # Go to http://localhost:3000/login
 # Email: admin@kprcas.ac.in
 # Password: admin@123 (reference only - system uses OTP)
@@ -560,6 +567,111 @@ SUBJECT: Your KPRCAS Attendance OTP
 │  ⚠️ Expires in 2 minutes          │
 └────────────────────────────────────┘
 ```
+
+---
+
+## 📅 Auto-Session Scheduling Feature (NEW!)
+
+### Overview
+
+Admins can now schedule automatic attendance sessions that are created and emailed to teachers before class starts.
+
+### How It Works
+
+1. **Admin schedules** class time when assigning teacher
+2. **System auto-creates** session 5 minutes before class
+3. **Email sent** to teacher with QR code and session code
+4. **Session expires** 5 minutes after start time
+5. **No manual work** needed - fully automated!
+
+### Admin Workflow
+
+```
+1. Go to: Admin → Manage → Assignments
+2. Click: "Assign Teacher"
+3. Select: Teacher, Subject, Class
+4. Check: ☑ "Enable automatic session creation"
+5. Set Schedule:
+   - Day: Monday
+   - Start Time: 10:00
+   - End Time: 11:00
+6. Click: "Assign"
+```
+
+### What Happens Automatically
+
+**Every Monday at 9:55 AM (5 min before class):**
+- Session created in database
+- Unique session code generated (e.g., ABC123)
+- QR code generated
+- Email sent to teacher with:
+  - Session code
+  - QR code image
+  - Class and subject details
+  - Expiration time (10:05 AM)
+
+### Teacher Email Example
+
+```
+FROM: "KPRCAS Attendance System"
+TO: teacher@kprcas.ac.in
+SUBJECT: Attendance Session Active - MSC A CS101
+
+Hello Dr. John Doe,
+
+Your attendance session is now active:
+
+Class: MSC A
+Subject: CS101 - Data Structures
+Session Code: ABC123
+
+[QR CODE IMAGE]
+
+Expires: 10:05 AM
+
+Students can scan the QR code or enter the
+session code to mark attendance.
+```
+
+### Setup Requirements
+
+**Environment Variables:**
+```env
+GMAIL_USER=your-email@gmail.com
+GMAIL_APP_PASSWORD=your-app-password
+CRON_SECRET=random-secret-key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+**Installation:**
+```bash
+npm install --save-dev @types/qrcode
+```
+
+**Database Migration:**
+```sql
+ALTER TABLE teacher_subjects ADD COLUMN day_of_week TEXT;
+ALTER TABLE teacher_subjects ADD COLUMN start_time TIME;
+ALTER TABLE teacher_subjects ADD COLUMN end_time TIME;
+ALTER TABLE teacher_subjects ADD COLUMN auto_session_enabled BOOLEAN DEFAULT false;
+```
+
+### Documentation Files
+
+- **AUTO_SESSION_FEATURE.md** - Complete documentation
+- **SETUP_AUTO_SESSION.md** - Quick setup guide
+- **MIGRATION_GUIDE.md** - Upgrade existing deployment
+- **QUICK_REFERENCE.md** - Command cheat sheet
+- **UI_CHANGES_GUIDE.md** - Visual UI guide
+
+### Benefits
+
+✅ Teachers never miss creating sessions  
+✅ Consistent timing every week  
+✅ Automatic email delivery  
+✅ No manual QR code generation  
+✅ Works on Vercel (free cron jobs)  
+✅ Fully customizable schedule  
 
 ---
 

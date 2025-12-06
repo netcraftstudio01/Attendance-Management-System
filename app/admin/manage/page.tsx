@@ -258,6 +258,10 @@ export default function AdminManagementPage() {
     setSelectedTeacher("")
     setSelectedSubject("")
     setSelectedClass("")
+    setSelectedDayOfWeek("")
+    setSelectedStartTime("")
+    setSelectedEndTime("")
+    setAutoSessionEnabled(false)
     setShowDialog(true)
   }
 
@@ -478,6 +482,10 @@ export default function AdminManagementPage() {
   const [selectedTeacher, setSelectedTeacher] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("")
   const [selectedClass, setSelectedClass] = useState("")
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState("")
+  const [selectedStartTime, setSelectedStartTime] = useState("")
+  const [selectedEndTime, setSelectedEndTime] = useState("")
+  const [autoSessionEnabled, setAutoSessionEnabled] = useState(false)
 
   // Assignment CRUD operations
   const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -488,12 +496,16 @@ export default function AdminManagementPage() {
       teacher_id: selectedTeacher,
       subject_id: selectedSubject,
       class_id: selectedClass,
+      day_of_week: selectedDayOfWeek || null,
+      start_time: selectedStartTime || null,
+      end_time: selectedEndTime || null,
+      auto_session_enabled: autoSessionEnabled,
     }
 
     console.log('Submitting assignment:', data)
 
     if (!data.teacher_id || !data.subject_id || !data.class_id) {
-      alert("Please select all fields")
+      alert("Please select all required fields")
       setLoading(false)
       return
     }
@@ -515,6 +527,10 @@ export default function AdminManagementPage() {
         setSelectedTeacher("")
         setSelectedSubject("")
         setSelectedClass("")
+        setSelectedDayOfWeek("")
+        setSelectedStartTime("")
+        setSelectedEndTime("")
+        setAutoSessionEnabled(false)
       } else {
         alert(result.error || "Operation failed")
       }
@@ -1483,6 +1499,73 @@ export default function AdminManagementPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* Schedule Settings */}
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="text-sm font-semibold mb-3">📅 Auto-Session Schedule (Optional)</h4>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="auto_session_enabled"
+                            checked={autoSessionEnabled}
+                            onChange={(e) => setAutoSessionEnabled(e.target.checked)}
+                            className="h-4 w-4"
+                          />
+                          <Label htmlFor="auto_session_enabled" className="text-sm cursor-pointer">
+                            Enable automatic session creation
+                          </Label>
+                        </div>
+
+                        {autoSessionEnabled && (
+                          <>
+                            <div>
+                              <Label htmlFor="day_of_week">Day of Week</Label>
+                              <Select value={selectedDayOfWeek} onValueChange={setSelectedDayOfWeek}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select day" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Monday">Monday</SelectItem>
+                                  <SelectItem value="Tuesday">Tuesday</SelectItem>
+                                  <SelectItem value="Wednesday">Wednesday</SelectItem>
+                                  <SelectItem value="Thursday">Thursday</SelectItem>
+                                  <SelectItem value="Friday">Friday</SelectItem>
+                                  <SelectItem value="Saturday">Saturday</SelectItem>
+                                  <SelectItem value="Sunday">Sunday</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label htmlFor="start_time">Start Time</Label>
+                                <Input
+                                  type="time"
+                                  id="start_time"
+                                  value={selectedStartTime}
+                                  onChange={(e) => setSelectedStartTime(e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="end_time">End Time</Label>
+                                <Input
+                                  type="time"
+                                  id="end_time"
+                                  value={selectedEndTime}
+                                  onChange={(e) => setSelectedEndTime(e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="bg-blue-50 p-3 rounded text-xs text-blue-800">
+                              ℹ️ Session will automatically start 5 minutes before the scheduled time and the QR code + session code will be emailed to the teacher.
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <DialogFooter className="mt-6">

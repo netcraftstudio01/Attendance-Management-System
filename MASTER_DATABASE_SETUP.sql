@@ -105,6 +105,10 @@ CREATE TABLE IF NOT EXISTS teacher_subjects (
   teacher_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
   subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  day_of_week TEXT CHECK (day_of_week IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')),
+  start_time TIME,
+  end_time TIME,
+  auto_session_enabled BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(teacher_id, class_id, subject_id)
 );
@@ -722,7 +726,27 @@ SELECT '════════════════════════
 -- ═══════════════════════════════════════════════════════════════════════
 
 -- ───────────────────────────────────────────────────────────────────────
--- 9.1 Fix: Add total_students column if missing
+-- 9.1 Fix: Add schedule fields to teacher_subjects for auto-sessions
+-- ───────────────────────────────────────────────────────────────────────
+
+-- Run these if you have an existing database without schedule fields:
+/*
+ALTER TABLE teacher_subjects 
+  ADD COLUMN IF NOT EXISTS day_of_week TEXT CHECK (day_of_week IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'));
+
+ALTER TABLE teacher_subjects 
+  ADD COLUMN IF NOT EXISTS start_time TIME;
+
+ALTER TABLE teacher_subjects 
+  ADD COLUMN IF NOT EXISTS end_time TIME;
+
+ALTER TABLE teacher_subjects 
+  ADD COLUMN IF NOT EXISTS auto_session_enabled BOOLEAN DEFAULT false;
+*/
+
+
+-- ───────────────────────────────────────────────────────────────────────
+-- 9.2 Fix: Add total_students column if missing
 -- ───────────────────────────────────────────────────────────────────────
 
 -- Uncomment these lines if you need to add total_students column:
@@ -739,7 +763,7 @@ SET total_students = (
 
 
 -- ───────────────────────────────────────────────────────────────────────
--- 9.2 Fix: Reset RLS if needed
+-- 9.3 Fix: Reset RLS if needed
 -- ───────────────────────────────────────────────────────────────────────
 
 -- Already disabled above, but uncomment if you need to reset:
@@ -756,7 +780,7 @@ ALTER TABLE attendance_otps DISABLE ROW LEVEL SECURITY;
 
 
 -- ───────────────────────────────────────────────────────────────────────
--- 9.3 Create Additional Admin Users (if needed)
+-- 9.4 Create Additional Admin Users (if needed)
 -- ───────────────────────────────────────────────────────────────────────
 
 -- Uncomment to create more admin accounts:
@@ -953,6 +977,8 @@ Note: The system uses OTP authentication, not password login.
    - Connect teachers to classes
    - Assign subjects to teachers
    - Manage teaching assignments
+   - Set class schedules (day/time)
+   - Enable auto-session creation with email notifications
 
 ✅ View Reports
    - Attendance statistics
@@ -1024,6 +1050,12 @@ Note: The system uses OTP authentication, not password login.
 5. ⚠️ ASSIGN TEACHERS TO CLASSES (CRITICAL):
    - Go to Admin → Manage → Assignments tab
    - Select teacher, class, and subject
+   - OPTIONAL: Enable automatic session scheduling
+     * Check "Enable automatic session creation"
+     * Select day of week (Monday-Sunday)
+     * Set start time and end time
+     * Sessions will auto-create 5 minutes before class time
+     * QR code and session code will be emailed to teacher
    - Click "Assign"
    - Without this, teachers won't see any classes in their dashboard!
 
@@ -1059,6 +1091,10 @@ Note: The system uses OTP authentication, not password login.
 - Admin password field is for reference only
 - Teachers MUST be assigned to classes to see them in dashboard
 - The teacher_subjects table is critical for teacher-class connections
+- Auto-session feature requires Vercel Cron or external cron service
+- Cron job runs every 3 minutes to check for scheduled sessions
+- Sessions auto-create 5 minutes before class start time
+- QR codes and session codes are emailed to teachers automatically
 
 ═══════════════════════════════════════════════════════════════════════
 
@@ -1067,8 +1103,34 @@ Note: The system uses OTP authentication, not password login.
 Make sure .env.local has:
   GMAIL_USER=your_email@gmail.com
   GMAIL_APP_PASSWORD=your_16_digit_app_password
+  CRON_SECRET=your-secret-key-here (for cron job security)
+  NEXT_PUBLIC_APP_URL=https://your-domain.com (for email links)
 
 Get app password from: https://myaccount.google.com/apppasswords
+
+═══════════════════════════════════════════════════════════════════════
+
+⏰ CRON JOB SETUP (For Auto-Sessions):
+
+The system includes automatic session creation. To enable it:
+
+1. On Vercel (Automatic):
+   - The vercel.json file is already configured
+   - Cron runs every 3 minutes automatically
+   - No additional setup needed
+
+2. On Other Platforms:
+   - Set up a cron job to call: /api/cron/create-scheduled-sessions
+   - Run every 3 minutes: */3 * * * *
+   - Include Authorization header: Bearer YOUR_CRON_SECRET
+   - Example cURL:
+     curl -H "Authorization: Bearer your-secret-key" \
+          https://your-domain.com/api/cron/create-scheduled-sessions
+
+3. Test the Cron Job:
+   - Visit /api/cron/create-scheduled-sessions in your browser
+   - Check response for scheduled sessions
+   - Verify emails are being sent to teachers
 
 ═══════════════════════════════════════════════════════════════════════
 */
