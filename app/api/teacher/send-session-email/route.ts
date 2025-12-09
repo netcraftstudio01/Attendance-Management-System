@@ -82,9 +82,18 @@ export async function POST(request: NextRequest) {
     // Generate QR code as buffer for attachment
     let qrCodeBuffer: Buffer
     try {
-      qrCodeBuffer = await QRCode.toBuffer(session.session_code, {
-        width: 300,
-        margin: 2,
+      // Create a proper URL that includes the session code
+      // When scanned, it will open the student attendance page with the session code pre-filled
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://attendance-management-system.vercel.app'
+      const qrContent = `${baseUrl}/student/attendance?session=${session.session_code}`
+      
+      console.log('📲 QR Code content:', qrContent)
+      
+      qrCodeBuffer = await QRCode.toBuffer(qrContent, {
+        width: 400,
+        margin: 3,
+        errorCorrectionLevel: 'H',
+        type: 'png',
         color: {
           dark: '#000000',
           light: '#FFFFFF'
