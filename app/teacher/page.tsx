@@ -108,6 +108,10 @@ export default function TeacherDashboard() {
     lastUpdated: string
   } | null>(null)
 
+  // Scheduled sessions for today
+  const [scheduledSessions, setScheduledSessions] = useState<any[]>([])
+  const [loadingScheduled, setLoadingScheduled] = useState(false)
+
   // Fetch live attendance for active session
   const fetchLiveAttendance = async (sessionId: string) => {
     try {
@@ -187,6 +191,10 @@ export default function TeacherDashboard() {
           id,
           class_id,
           subject_id,
+          day_of_week,
+          start_time,
+          end_time,
+          auto_session_enabled,
           classes (
             id,
             class_name,
@@ -213,14 +221,27 @@ export default function TeacherDashboard() {
           section: assignment.classes?.section || '',
           subject_name: assignment.subjects?.subject_name || '',
           subject_code: assignment.subjects?.subject_code || '',
+          day_of_week: assignment.day_of_week,
+          start_time: assignment.start_time,
+          end_time: assignment.end_time,
+          auto_session_enabled: assignment.auto_session_enabled,
         }))
         setAssignments(formattedAssignments)
         console.log("✅ Loaded assignments:", formattedAssignments)
+
+        // Fetch scheduled sessions for today
+        const today = new Date().toLocaleDateString('en-US', { weekday: 'long' })
+        const scheduledForToday = formattedAssignments.filter(
+          (a) => a.day_of_week === today && a.auto_session_enabled
+        )
+        setScheduledSessions(scheduledForToday)
+        console.log("📅 Scheduled sessions for today:", scheduledForToday)
       } else {
         // No assignments found
         console.log("ℹ️ No assignments found for teacher:", teacherId)
         console.log("📌 Please ask admin to assign you to classes and subjects")
         setAssignments([])
+        setScheduledSessions([])
       }
 
       // Check for active session
@@ -642,6 +663,48 @@ export default function TeacherDashboard() {
                     </div>
                   ) : (
                     <>
+                      {/* Scheduled Sessions for Today */}
+                      {scheduledSessions.length > 0 && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                          <div className="flex items-start gap-2">
+                            <span className="text-lg">📅</span>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-sm text-blue-900">Scheduled Sessions Today</h3>
+                              <p className="text-xs text-blue-700 mt-1">These will auto-start at the scheduled time</p>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {scheduledSessions.map((session) => {
+                              const startTime = session.start_time
+                              const [hours, minutes] = startTime.split(':')
+                              const hour = parseInt(hours)
+                              const ampm = hour >= 12 ? 'PM' : 'AM'
+                              const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
+                              const timeDisplay = `${displayHour}:${minutes} ${ampm}`
+
+                              return (
+                                <div key={session.id} className="bg-white p-3 rounded-md border border-blue-100">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex-1">
+                                      <p className="font-medium text-sm">
+                                        {session.class_name} {session.section}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {session.subject_code} - {session.subject_name}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-semibold text-sm text-blue-600">{timeDisplay}</p>
+                                      <p className="text-[10px] text-muted-foreground">Starts automatically</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label htmlFor="class" className="text-sm sm:text-base">Select Class</Label>
                         <select
