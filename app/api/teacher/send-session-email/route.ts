@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
     try {
       // Create a proper URL that includes the session code
       // When scanned, it will open the student attendance page with the session code pre-filled
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://attendance-management-system.vercel.app'
-      const qrContent = `${baseUrl}/student/attendance?session=${session.session_code}`
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://attendance-system-roan-one.vercel.app'
+      const qrContent = `${baseUrl}/student/attendance?session=${encodeURIComponent(session.session_code)}`
       
       console.log('📲 QR Code content:', qrContent)
       
