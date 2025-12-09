@@ -10,23 +10,21 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
   try {
     const {
-      studentId,
-      classId,
-      subjectId,
-      teacherId,
-      adminId,
-      odDate,
+      student_id,
+      class_id,
+      teacher_id,
+      admin_id,
+      od_date,
       reason,
     } = await request.json();
 
     // Validate required fields
     if (
-      !studentId ||
-      !classId ||
-      !subjectId ||
-      !teacherId ||
-      !adminId ||
-      !odDate ||
+      !student_id ||
+      !class_id ||
+      !teacher_id ||
+      !admin_id ||
+      !od_date ||
       !reason
     ) {
       return NextResponse.json(
@@ -39,7 +37,7 @@ export async function POST(request: NextRequest) {
     const { data: studentData, error: studentError } = await supabase
       .from('students')
       .select('id, name, email, class_id')
-      .eq('id', studentId)
+      .eq('id', student_id)
       .limit(1);
 
     if (studentError || !studentData || studentData.length === 0) {
@@ -51,19 +49,18 @@ export async function POST(request: NextRequest) {
 
     const student = studentData[0];
 
-    // Check if OD request already exists for same date and subject
+    // Check if OD request already exists for same date
     const { data: existingRequest } = await supabase
       .from('od_requests')
       .select('id')
-      .eq('student_id', studentId)
-      .eq('subject_id', subjectId)
-      .eq('od_date', odDate)
+      .eq('student_id', student_id)
+      .eq('od_date', od_date)
       .eq('status', 'pending')
       .limit(1);
 
     if (existingRequest && existingRequest.length > 0) {
       return NextResponse.json(
-        { error: 'You already have a pending OD request for this date and subject' },
+        { error: 'You already have a pending OD request for this date' },
         { status: 400 }
       );
     }
@@ -73,12 +70,11 @@ export async function POST(request: NextRequest) {
       .from('od_requests')
       .insert([
         {
-          student_id: studentId,
-          class_id: classId,
-          subject_id: subjectId,
-          teacher_id: teacherId,
-          admin_id: adminId,
-          od_date: odDate,
+          student_id: student_id,
+          class_id: class_id,
+          teacher_id: teacher_id,
+          admin_id: admin_id,
+          od_date: od_date,
           reason: reason,
           status: 'pending',
           teacher_approved: false,
@@ -102,14 +98,14 @@ export async function POST(request: NextRequest) {
     const { data: teacherData } = await supabase
       .from('users')
       .select('email, name')
-      .eq('id', teacherId)
+      .eq('id', teacher_id)
       .limit(1);
 
     // Get admin details for notification
     const { data: adminData } = await supabase
       .from('users')
       .select('email, name')
-      .eq('id', adminId)
+      .eq('id', admin_id)
       .limit(1);
 
     const teacher = teacherData?.[0];
@@ -126,8 +122,8 @@ export async function POST(request: NextRequest) {
             to: teacher.email,
             studentName: student.name,
             studentEmail: student.email,
-            odDate,
-            reason,
+            odDate: od_date,
+            reason: reason,
             recipientRole: 'teacher',
             recipientName: teacher.name,
           }),
@@ -143,8 +139,8 @@ export async function POST(request: NextRequest) {
             to: admin.email,
             studentName: student.name,
             studentEmail: student.email,
-            odDate,
-            reason,
+            odDate: od_date,
+            reason: reason,
             recipientRole: 'admin',
             recipientName: admin.name,
           }),
