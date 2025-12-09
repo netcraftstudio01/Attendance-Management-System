@@ -1092,10 +1092,27 @@ export default function StudentAttendancePage() {
             </div>
           </InteractiveCard>
 
-          {/* Footer */}
-          <p className="text-center text-sm text-muted-foreground">
-            Having trouble? Contact your teacher for assistance.
-          </p>
+          {/* Footer with Navigation */}
+          <div className="space-y-3">
+            <p className="text-center text-sm text-muted-foreground">
+              Having trouble? Contact your teacher for assistance.
+            </p>
+            <Button 
+              onClick={() => {
+                // Check if user is logged in
+                const user = localStorage.getItem('user');
+                if (!user) {
+                  window.location.href = '/login';
+                } else {
+                  window.location.href = '/student/od-request';
+                }
+              }}
+              variant="outline"
+              className="w-full touch-target text-xs sm:text-sm"
+            >
+              📝 Apply for On Duty (OD)
+            </Button>
+          </div>
         </div>
       </div>
     </ResponsiveWrapper>

@@ -113,6 +113,64 @@ export default function TeacherDashboard() {
   const [loadingScheduled, setLoadingScheduled] = useState(false)
   const [processedSessions, setProcessedSessions] = useState<Set<string>>(new Set())
 
+  // OD approvals
+  const [pendingODRequests, setPendingODRequests] = useState<any[]>([])
+  const [loadingODRequests, setLoadingODRequests] = useState(false)
+
+  // Fetch pending OD requests for this teacher
+  const fetchPendingODRequests = async (teacherId: string) => {
+    try {
+      setLoadingODRequests(true)
+      const { data, error } = await supabase
+        .from('od_requests')
+        .select(`
+          id,
+          od_date,
+          reason,
+          status,
+          teacher_approved,
+          admin_approved,
+          students (id, name, email),
+          subjects (id, subject_name),
+          classes (id, class_name)
+        `)
+        .eq('teacher_id', teacherId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (!error && data) {
+        setPendingODRequests(data)
+      }
+    } catch (error) {
+      console.error('Error fetching OD requests:', error)
+    } finally {
+      setLoadingODRequests(false)
+    }
+  }
+
+  const approveODRequest = async (requestId: string, approved: boolean, notes: string = '') => {
+    try {
+      const response = await fetch('/api/teacher/approve-od', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          odRequestId: requestId,
+          teacherId: user?.id,
+          approved,
+          approvalNotes: notes,
+        }),
+      })
+
+      if (response.ok) {
+        // Refresh OD requests
+        await fetchPendingODRequests(user?.id!)
+      }
+    } catch (error) {
+      console.error('Error approving OD request:', error)
+    }
+  }
+
   // Fetch live attendance for active session
   const fetchLiveAttendance = async (sessionId: string) => {
     try {
@@ -446,6 +504,9 @@ export default function TeacherDashboard() {
         totalSessions: totalSessions || 0,
         averageAttendance: 0,
       })
+
+      // Fetch pending OD requests
+      await fetchPendingODRequests(teacherId)
     } catch (error) {
       console.error("Error fetching teacher data:", error)
     }
@@ -1018,6 +1079,64 @@ export default function TeacherDashboard() {
         </div>
 
 
+
+        {/* OD Approvals Section */}
+        {pendingODRequests.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">OD Approval Requests</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Review and approve On Duty requests from students
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingODRequests.map((request) => (
+                  <div key={request.id} className="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
+                    <div className="flex justify-between items-start gap-4 mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-sm sm:text-base">{request.students?.name}</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                          {request.students?.email}
+                        </p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                          📅 {new Date(request.od_date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                          📚 {request.subjects?.subject_name}
+                        </p>
+                      </div>
+                      <span className="px-2 py-1 text-xs bg-yellow-200 text-yellow-800 rounded-full">
+                        ⏳ Pending
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-gray-700 mb-3 bg-white p-2 rounded">
+                      <strong>Reason:</strong> {request.reason}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => approveODRequest(request.id, true)}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm"
+                      >
+                        ✓ Approve
+                      </Button>
+                      <Button
+                        onClick={() => approveODRequest(request.id, false)}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm"
+                      >
+                        ✕ Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* View Students Section */}
         <Card>

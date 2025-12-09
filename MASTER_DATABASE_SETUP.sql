@@ -202,6 +202,31 @@ CREATE TABLE IF NOT EXISTS attendance_otps (
 );
 
 
+-- ───────────────────────────────────────────────────────────────────────
+-- 1.10 OD_REQUESTS TABLE (On Duty Requests)
+-- ───────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS od_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  teacher_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  od_date DATE NOT NULL,
+  reason TEXT NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  teacher_approved BOOLEAN DEFAULT FALSE,
+  teacher_approved_at TIMESTAMP WITH TIME ZONE,
+  teacher_approval_notes TEXT,
+  admin_approved BOOLEAN DEFAULT FALSE,
+  admin_approved_at TIMESTAMP WITH TIME ZONE,
+  admin_approval_notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+
 -- ═══════════════════════════════════════════════════════════════════════
 -- SECTION 2: INDEXES & PERFORMANCE OPTIMIZATION
 -- ═══════════════════════════════════════════════════════════════════════
@@ -258,6 +283,17 @@ CREATE INDEX IF NOT EXISTS idx_attendance_otps_verified ON attendance_otps(verif
 CREATE INDEX IF NOT EXISTS idx_otps_email ON otps(email);
 CREATE INDEX IF NOT EXISTS idx_otps_expires_at ON otps(expires_at);
 CREATE INDEX IF NOT EXISTS idx_otps_is_used ON otps(is_used);
+
+-- OD_requests indexes
+CREATE INDEX IF NOT EXISTS idx_od_requests_student ON od_requests(student_id);
+CREATE INDEX IF NOT EXISTS idx_od_requests_teacher ON od_requests(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_od_requests_admin ON od_requests(admin_id);
+CREATE INDEX IF NOT EXISTS idx_od_requests_class ON od_requests(class_id);
+CREATE INDEX IF NOT EXISTS idx_od_requests_subject ON od_requests(subject_id);
+CREATE INDEX IF NOT EXISTS idx_od_requests_status ON od_requests(status);
+CREATE INDEX IF NOT EXISTS idx_od_requests_date ON od_requests(od_date);
+CREATE INDEX IF NOT EXISTS idx_od_requests_teacher_approved ON od_requests(teacher_approved);
+CREATE INDEX IF NOT EXISTS idx_od_requests_admin_approved ON od_requests(admin_approved);
 
 
 -- ═══════════════════════════════════════════════════════════════════════
