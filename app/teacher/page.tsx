@@ -162,6 +162,114 @@ export default function TeacherDashboard() {
     return () => clearInterval(interval)
   }, [activeSession])
 
+  // Auto-start scheduled sessions when their time arrives
+  useEffect(() => {
+    if (!user || !scheduledSessions || scheduledSessions.length === 0) {
+      return
+    }
+
+    const checkAndAutoStart = async () => {
+      const now = new Date()
+      const currentHours = String(now.getHours()).padStart(2, '0')
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0')
+      const currentTime = `${currentHours}:${currentMinutes}`
+
+      console.log(`⏰ Checking scheduled sessions... Current time: ${currentTime}`)
+
+      for (const session of scheduledSessions) {
+        // Check if current time matches session start time (within 2-minute window)
+        const [schedHours, schedMinutes] = session.start_time.split(':')
+        const schedTime = `${schedHours}:${schedMinutes}`
+
+        // Parse times for comparison
+        const now = new Date()
+        const schedDate = new Date()
+        schedDate.setHours(parseInt(schedHours), parseInt(schedMinutes), 0)
+
+        const timeDiff = Math.abs(now.getTime() - schedDate.getTime()) / 60000 // difference in minutes
+
+        // If within 2 minutes of start time and no active session yet
+        if (timeDiff <= 2 && !activeSession) {
+          console.log(`🚀 Auto-starting session: ${session.class_name} at ${schedTime}`)
+
+          try {
+            // Check if session already exists for this assignment
+            const { data: existingSession } = await supabase
+              .from("attendance_sessions")
+              .select("id")
+              .eq("teacher_id", user.id)
+              .eq("class_id", session.class_id)
+              .eq("subject_id", session.subject_id)
+              .eq("status", "active")
+              .single()
+
+            if (existingSession) {
+              console.log("✅ Session already exists for this class")
+              return
+            }
+
+            // Auto-start the session
+            const sessionCode = generateSessionCode()
+            const today = new Date().toISOString().split("T")[0]
+            const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 minutes from now
+
+            const { data: newSession, error } = await supabase
+              .from("attendance_sessions")
+              .insert({
+                teacher_id: user.id,
+                class_id: session.class_id,
+                subject_id: session.subject_id,
+                session_code: sessionCode,
+                session_date: today,
+                expires_at: expiresAt,
+                status: 'active',
+              })
+              .select(`
+                *,
+                classes (class_name, section),
+                subjects (subject_name, subject_code)
+              `)
+              .single()
+
+            if (error) {
+              console.error("❌ Error auto-starting session:", error)
+              return
+            }
+
+            console.log("✅ Session auto-started:", newSession)
+            setActiveSession(newSession)
+
+            // Send QR code email
+            try {
+              const emailResponse = await fetch("/api/teacher/send-session-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                  sessionId: newSession.id,
+                  teacherEmail: user.email 
+                }),
+              })
+
+              const emailResult = await emailResponse.json()
+              if (emailResult.success) {
+                console.log("✅ QR code email sent for auto-started session")
+              }
+            } catch (emailError) {
+              console.error("⚠️ Error sending email for auto-started session:", emailError)
+            }
+          } catch (error) {
+            console.error("❌ Error in auto-start logic:", error)
+          }
+        }
+      }
+    }
+
+    // Check every 10 seconds for scheduled sessions to start
+    const interval = setInterval(checkAndAutoStart, 10000)
+
+    return () => clearInterval(interval)
+  }, [scheduledSessions, user, activeSession])
+
   useEffect(() => {
     // Check authentication immediately
     const userData = localStorage.getItem("user")
