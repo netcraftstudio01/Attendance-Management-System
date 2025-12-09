@@ -336,6 +336,33 @@ export default function TeacherDashboard() {
 
       console.log("✅ Session created successfully:", session)
       setActiveSession(session)
+
+      // Send QR code email to teacher
+      try {
+        console.log("📧 Sending QR code email to teacher...")
+        const emailResponse = await fetch("/api/teacher/send-session-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            sessionId: session.id,
+            teacherEmail: user.email 
+          }),
+        })
+
+        const emailResult = await emailResponse.json()
+        console.log("📨 Email API Response:", emailResult)
+        
+        if (emailResult.success) {
+          console.log("✅ QR code email sent successfully")
+          alert(`✅ Session started!\n\nQR code has been sent to:\n${user.email}\n\nMessage ID: ${emailResult.messageId || 'Processing'}`)
+        } else {
+          console.warn("⚠️ Email send failed:", emailResult)
+          alert(`⚠️ Session started but email failed:\n\n${emailResult.error}\n${emailResult.details || ''}\n\nPlease check your email credentials.`)
+        }
+      } catch (emailError) {
+        console.error("❌ Error sending email:", emailError)
+        alert(`⚠️ Session started but failed to send email.\n\nError: ${emailError instanceof Error ? emailError.message : 'Unknown error'}`)
+      }
     } catch (error) {
       console.error("❌ Error starting session:", error)
       console.error("Error type:", typeof error)

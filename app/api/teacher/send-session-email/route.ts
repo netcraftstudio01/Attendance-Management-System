@@ -5,7 +5,7 @@ import QRCode from 'qrcode'
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId } = await request.json()
+    const { sessionId, teacherEmail } = await request.json()
 
     if (!sessionId) {
       return NextResponse.json(
@@ -14,36 +14,63 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch session details with teacher, class, and subject info
+    console.log('📧 Fetching session:', sessionId)
+
+    // Fetch session details with simpler query
     const { data: session, error: sessionError } = await supabase
       .from('attendance_sessions')
-      .select(`
-        id,
-        session_code,
-        qr_code,
-        status,
-        expires_at,
-        teacher_id,
-        class_id,
-        subject_id,
-        users!teacher_id(id, name, email),
-        classes!class_id(id, class_name, section, year),
-        subjects!subject_id(id, subject_code, subject_name)
-      `)
+      .select('*')
       .eq('id', sessionId)
       .single()
 
     if (sessionError || !session) {
       console.error('Error fetching session:', sessionError)
       return NextResponse.json(
-        { error: 'Session not found' },
+        { error: 'Session not found', details: sessionError?.message },
         { status: 404 }
       )
     }
 
-    const teacher = session.users as any
-    const classData = session.classes as any
-    const subject = session.subjects as any
+    console.log('✅ Session found:', session.id)
+
+    // Fetch class details
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, class_name, section, year')
+      .eq('id', session.class_id)
+      .single()
+
+    if (classError) {
+      console.error('Error fetching class:', classError)
+    }
+
+    // Fetch subject details
+    const { data: subjectData, error: subjectError } = await supabase
+      .from('subjects')
+      .select('id, subject_code, subject_name')
+      .eq('id', session.subject_id)
+      .single()
+
+    if (subjectError) {
+      console.error('Error fetching subject:', subjectError)
+    }
+
+    // Fetch teacher details
+    const { data: teacherData, error: teacherError } = await supabase
+      .from('users')
+      .select('id, name, email')
+      .eq('id', session.teacher_id)
+      .single()
+
+    if (teacherError || !teacherData) {
+      console.error('Error fetching teacher:', teacherError)
+      return NextResponse.json(
+        { error: 'Teacher not found' },
+        { status: 404 }
+      )
+    }
+
+    const teacher = teacherData
 
     if (!teacher?.email) {
       return NextResponse.json(
@@ -52,11 +79,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate QR code as data URL
-    let qrCodeDataUrl = ''
+    // Generate QR code as buffer for attachment
+    let qrCodeBuffer: Buffer
     try {
-      // Create the QR code data (session code)
-      qrCodeDataUrl = await QRCode.toDataURL(session.session_code, {
+      qrCodeBuffer = await QRCode.toBuffer(session.session_code, {
         width: 300,
         margin: 2,
         color: {
@@ -75,15 +101,20 @@ export async function POST(request: NextRequest) {
     // Send email using Nodemailer
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       console.warn('⚠️ Gmail credentials not configured')
+      console.warn('GMAIL_USER:', process.env.GMAIL_USER ? 'Set' : 'Not set')
+      console.warn('GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? 'Set' : 'Not set')
       return NextResponse.json(
         { 
           success: false,
-          error: 'Email service not configured',
+          error: 'Email service not configured - missing Gmail credentials',
           session: session
         },
         { status: 500 }
       )
     }
+
+    console.log('📧 Preparing to send email to:', teacher.email)
+    console.log('🎯 Using Gmail account:', process.env.GMAIL_USER)
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -94,8 +125,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Email HTML template
-    const htmlTemplate = `
-<!DOCTYPE html>
+    const htmlTemplate = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
@@ -155,11 +185,11 @@ export async function POST(request: NextRequest) {
   <body>
     <div class="container">
       <div class="header">
-        <h1>🏫 KPRCAS Attendance Session</h1>
+        <h1>KPRCAS Attendance Session</h1>
         <p>Auto-Generated Attendance Session</p>
       </div>
       <div class="content">
-        <div class="success-badge">✓ SESSION ACTIVE</div>
+        <div class="success-badge">SESSION ACTIVE</div>
         
         <h2>Hello ${teacher.name},</h2>
         <p>Your attendance session has been automatically created and is now active.</p>
@@ -169,12 +199,12 @@ export async function POST(request: NextRequest) {
           
           <div class="info-row">
             <span class="info-label">Class:</span>
-            <span class="info-value">${classData.class_name} ${classData.section || ''}</span>
+            <span class="info-value">${classData?.class_name || 'N/A'} ${classData?.section || ''}</span>
           </div>
           
           <div class="info-row">
             <span class="info-label">Subject:</span>
-            <span class="info-value">${subject.subject_code} - ${subject.subject_name}</span>
+            <span class="info-value">${subjectData?.subject_code || 'N/A'} - ${subjectData?.subject_name || 'N/A'}</span>
           </div>
           
           <div class="info-row">
@@ -184,7 +214,7 @@ export async function POST(request: NextRequest) {
           
           <div class="qr-code">
             <p style="margin-bottom: 10px; color: #666;">QR Code for Students:</p>
-            <img src="${qrCodeDataUrl}" alt="QR Code" style="max-width: 300px; border: 2px solid #667eea; padding: 10px; background: white;">
+            <img src="cid:qrcode" alt="QR Code" style="max-width: 300px; border: 2px solid #667eea; padding: 10px; background: white;">
           </div>
           
           <div class="info-row">
@@ -194,7 +224,7 @@ export async function POST(request: NextRequest) {
         </div>
         
         <div class="warning">
-          ⏰ <strong>Important:</strong> This session is valid for <strong>5 minutes</strong> only. Students must scan the QR code or enter the session code before it expires.
+          <strong>Important:</strong> This session is valid for <strong>5 minutes</strong> only. Students must scan the QR code or enter the session code before it expires.
         </div>
         
         <h3>How Students Can Mark Attendance:</h3>
@@ -214,23 +244,58 @@ export async function POST(request: NextRequest) {
   </body>
 </html>`
 
-    // Send email
+    // Send email with QR code attachment
     const mailOptions = {
       from: `"KPRCAS Attendance System" <${process.env.GMAIL_USER}>`,
       to: teacher.email,
-      subject: `Attendance Session Active - ${classData.class_name} ${subject.subject_code}`,
+      subject: `Attendance Session Active - ${classData?.class_name || 'Class'} ${subjectData?.subject_code || 'Subject'}`,
       html: htmlTemplate,
+      attachments: [
+        {
+          filename: 'qrcode.png',
+          content: qrCodeBuffer,
+          cid: 'qrcode'
+        }
+      ]
     }
 
-    await transporter.sendMail(mailOptions)
-    console.log('✅ Session email sent successfully to:', teacher.email)
+    try {
+      console.log('🚀 Sending email with options:', {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject
+      })
+      
+      const info = await transporter.sendMail(mailOptions)
+      
+      console.log('✅ Session email sent successfully!')
+      console.log('📧 Email ID:', info.messageId)
+      console.log('📨 To:', teacher.email)
 
-    return NextResponse.json({
-      success: true,
-      message: 'Session email sent successfully',
-      teacher_email: teacher.email,
-      session_code: session.session_code
-    })
+      return NextResponse.json({
+        success: true,
+        message: 'Session email sent successfully',
+        teacher_email: teacher.email,
+        session_code: session.session_code,
+        messageId: info.messageId
+      })
+    } catch (emailError) {
+      console.error('❌ Error sending email:', emailError)
+      console.error('Error details:', {
+        message: emailError instanceof Error ? emailError.message : 'Unknown error',
+        code: emailError instanceof Error && 'code' in emailError ? (emailError as any).code : undefined
+      })
+      
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Failed to send email',
+          details: emailError instanceof Error ? emailError.message : 'Unknown error',
+          teacher_email: teacher.email
+        },
+        { status: 500 }
+      )
+    }
   } catch (error) {
     console.error('❌ Error sending session email:', error)
     return NextResponse.json(
