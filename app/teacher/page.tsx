@@ -116,6 +116,9 @@ export default function TeacherDashboard() {
   // OD approvals
   const [pendingODRequests, setPendingODRequests] = useState<any[]>([])
   const [loadingODRequests, setLoadingODRequests] = useState(false)
+  const [odRequestsForClass, setOdRequestsForClass] = useState<any[]>([])
+  const [odSelectedClassId, setOdSelectedClassId] = useState("")
+  const [showODRequestsView, setShowODRequestsView] = useState(false)
 
   // Fetch pending OD requests for this teacher
   const fetchPendingODRequests = async (teacherId: string) => {
@@ -149,6 +152,37 @@ export default function TeacherDashboard() {
     }
   }
 
+  // Fetch all OD requests for a specific class (pending, approved, rejected)
+  const fetchODRequestsByClass = async (teacherId: string, classId: string) => {
+    try {
+      setLoadingODRequests(true)
+      const { data, error } = await supabase
+        .from('od_requests')
+        .select(`
+          id,
+          od_start_date,
+          od_end_date,
+          reason,
+          status,
+          teacher_approved,
+          admin_approved,
+          students (id, name, email),
+          classes (id, class_name)
+        `)
+        .eq('teacher_id', teacherId)
+        .eq('class_id', classId)
+        .order('created_at', { ascending: false })
+
+      if (!error && data) {
+        setOdRequestsForClass(data)
+      }
+    } catch (error) {
+      console.error('Error fetching OD requests for class:', error)
+    } finally {
+      setLoadingODRequests(false)
+    }
+  }
+
   const approveODRequest = async (requestId: string, approved: boolean, notes: string = '') => {
     try {
       const response = await fetch('/api/teacher/approve-od', {
@@ -162,11 +196,18 @@ export default function TeacherDashboard() {
         }),
       })
 
+      const data = await response.json()
       if (response.ok) {
+        // Show success message
+        alert(approved ? 'OD request approved successfully!' : 'OD request rejected successfully!')
         // Refresh OD requests
         await fetchPendingODRequests(user?.id!)
+      } else {
+        alert('Error: ' + (data.error || 'Failed to process OD request'))
+        console.error('Error response:', data)
       }
     } catch (error) {
+      alert('Error approving OD request: ' + String(error))
       console.error('Error approving OD request:', error)
     }
   }
@@ -1217,6 +1258,168 @@ export default function TeacherDashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* OD Requests Management Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl">📋 OD Requests Management</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              View and manage all OD requests by class - Pending, Approved, and Rejected
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Class Selector for OD Requests */}
+              <div className="space-y-2">
+                <Label htmlFor="od-class" className="text-sm sm:text-base">Select Class</Label>
+                <select
+                  id="od-class"
+                  value={odSelectedClassId}
+                  onChange={(e) => {
+                    setOdSelectedClassId(e.target.value)
+                    if (e.target.value && user) {
+                      fetchODRequestsByClass(user.id, e.target.value)
+                    }
+                  }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm sm:text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="">-- Select a Class --</option>
+                  {assignments.map((assignment) => (
+                    <option key={assignment.class_id} value={assignment.class_id}>
+                      {assignment.class_name} {assignment.section}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* OD Requests Display by Status */}
+              {odSelectedClassId && (
+                <div className="space-y-6">
+                  {/* Pending Requests */}
+                  {odRequestsForClass.filter(r => r.status === 'pending').length > 0 && (
+                    <div className="border-l-4 border-yellow-400 pl-4">
+                      <h3 className="font-semibold text-lg text-yellow-700 mb-3">
+                        ⏳ Pending Requests ({odRequestsForClass.filter(r => r.status === 'pending').length})
+                      </h3>
+                      <div className="space-y-3">
+                        {odRequestsForClass.filter(r => r.status === 'pending').map((request) => {
+                          const startDate = new Date(request.od_start_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                          const endDate = new Date(request.od_end_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                          
+                          return (
+                            <div key={request.id} className="border border-yellow-200 bg-yellow-50 rounded-lg p-3">
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-sm">{request.students?.name}</p>
+                                  <p className="text-xs text-muted-foreground">{request.students?.email}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">📅 {startDate} to {endDate}</p>
+                                  <p className="text-xs text-gray-700 mt-1"><strong>Reason:</strong> {request.reason}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 mt-3">
+                                <Button
+                                  onClick={() => approveODRequest(request.id, true)}
+                                  className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs"
+                                >
+                                  ✓ Approve
+                                </Button>
+                                <Button
+                                  onClick={() => approveODRequest(request.id, false)}
+                                  className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs"
+                                >
+                                  ✕ Reject
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Approved Requests */}
+                  {odRequestsForClass.filter(r => r.status === 'approved').length > 0 && (
+                    <div className="border-l-4 border-green-400 pl-4">
+                      <h3 className="font-semibold text-lg text-green-700 mb-3">
+                        ✓ Approved ({odRequestsForClass.filter(r => r.status === 'approved').length})
+                      </h3>
+                      <div className="space-y-3">
+                        {odRequestsForClass.filter(r => r.status === 'approved').map((request) => {
+                          const startDate = new Date(request.od_start_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                          const endDate = new Date(request.od_end_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                          
+                          return (
+                            <div key={request.id} className="border border-green-200 bg-green-50 rounded-lg p-3">
+                              <p className="font-semibold text-sm">{request.students?.name}</p>
+                              <p className="text-xs text-muted-foreground">{request.students?.email}</p>
+                              <p className="text-xs text-muted-foreground mt-1">📅 {startDate} to {endDate}</p>
+                              <p className="text-xs text-gray-700 mt-1"><strong>Reason:</strong> {request.reason}</p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rejected Requests */}
+                  {odRequestsForClass.filter(r => r.status === 'rejected').length > 0 && (
+                    <div className="border-l-4 border-red-400 pl-4">
+                      <h3 className="font-semibold text-lg text-red-700 mb-3">
+                        ✕ Rejected ({odRequestsForClass.filter(r => r.status === 'rejected').length})
+                      </h3>
+                      <div className="space-y-3">
+                        {odRequestsForClass.filter(r => r.status === 'rejected').map((request) => {
+                          const startDate = new Date(request.od_start_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                          const endDate = new Date(request.od_end_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                          
+                          return (
+                            <div key={request.id} className="border border-red-200 bg-red-50 rounded-lg p-3">
+                              <p className="font-semibold text-sm">{request.students?.name}</p>
+                              <p className="text-xs text-muted-foreground">{request.students?.email}</p>
+                              <p className="text-xs text-muted-foreground mt-1">📅 {startDate} to {endDate}</p>
+                              <p className="text-xs text-gray-700 mt-1"><strong>Reason:</strong> {request.reason}</p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No requests message */}
+                  {odRequestsForClass.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No OD requests for this class yet.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!odSelectedClassId && (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Select a class to view OD requests</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* View Students Section */}
         <Card>

@@ -6,9 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { FileDown, FileText, Table as TableIcon, Download, Loader2 } from "lucide-react"
+import { createClient } from "@supabase/supabase-js"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import * as XLSX from "xlsx"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+)
 
 interface Teacher {
   id: string
@@ -40,6 +46,12 @@ export default function TeacherReports() {
   const [reportData, setReportData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
+  // OD Report states
+  const [showODReport, setShowODReport] = useState(false)
+  const [odReportClass, setOdReportClass] = useState("")
+  const [odReportData, setOdReportData] = useState<any>(null)
+  const [odLoading, setOdLoading] = useState(false)
+
   useEffect(() => {
     const teacherData = localStorage.getItem("user")
     if (!teacherData) {
@@ -68,6 +80,55 @@ export default function TeacherReports() {
       }
     } catch (error) {
       console.error("Error:", error)
+    }
+  }
+
+  const fetchODReport = async () => {
+    if (!teacher || !odReportClass) {
+      alert("Please select a class")
+      return
+    }
+
+    setOdLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from("od_requests")
+        .select(
+          `
+          id,
+          od_start_date,
+          od_end_date,
+          reason,
+          status,
+          teacher_approved,
+          admin_approved,
+          students (id, name, email),
+          classes (id, class_name)
+        `
+        )
+        .eq("teacher_id", teacher.id)
+        .eq("class_id", odReportClass)
+        .order("created_at", { ascending: false })
+
+      if (!error && data) {
+        // Process OD data for report
+        const pending = data.filter(r => r.status === "pending").length
+        const approved = data.filter(r => r.status === "approved").length
+        const rejected = data.filter(r => r.status === "rejected").length
+
+        setOdReportData({
+          total: data.length,
+          pending,
+          approved,
+          rejected,
+          requests: data
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching OD report:", error)
+      alert("Failed to fetch OD report")
+    } finally {
+      setOdLoading(false)
     }
   }
 
@@ -236,6 +297,86 @@ export default function TeacherReports() {
     XLSX.utils.book_append_sheet(wb, detailedWs, "Detailed Records")
 
     XLSX.writeFile(wb, `attendance_report_${period}_${Date.now()}.xlsx`)
+  }
+
+  const exportODToPDF = () => {
+    if (!odReportData || !teacher) return
+
+    const doc = new jsPDF()
+    
+    // Title
+    doc.setFontSize(20)
+    doc.text("On-Duty (OD) Report", 14, 20)
+    
+    // Teacher Info
+    doc.setFontSize(10)
+    doc.text(`Teacher: ${teacher.name}`, 14, 30)
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 36)
+    
+    // Summary
+    doc.setFontSize(14)
+    doc.text("Summary", 14, 46)
+    doc.setFontSize(10)
+    doc.text(`Total OD Requests: ${odReportData.total}`, 14, 54)
+    doc.text(`Pending: ${odReportData.pending}`, 14, 60)
+    doc.text(`Approved: ${odReportData.approved}`, 14, 66)
+    doc.text(`Rejected: ${odReportData.rejected}`, 14, 72)
+    
+    // OD Requests table
+    const odData = odReportData.requests.map((req: any) => [
+      req.students?.name || "N/A",
+      req.students?.email || "N/A",
+      new Date(req.od_start_date).toLocaleDateString(),
+      new Date(req.od_end_date).toLocaleDateString(),
+      req.reason,
+      req.status.charAt(0).toUpperCase() + req.status.slice(1)
+    ])
+
+    autoTable(doc, {
+      startY: 80,
+      head: [["Student Name", "Email", "Start Date", "End Date", "Reason", "Status"]],
+      body: odData,
+      theme: "grid",
+      headStyles: { fillColor: [59, 130, 246] }
+    })
+
+    doc.save(`od_report_${Date.now()}.pdf`)
+  }
+
+  const exportODToCSV = () => {
+    if (!odReportData) return
+
+    const wb = XLSX.utils.book_new()
+
+    // Summary sheet
+    const summaryData = [
+      ["OD Report Summary"],
+      [""],
+      ["Total Requests", odReportData.total],
+      ["Pending", odReportData.pending],
+      ["Approved", odReportData.approved],
+      ["Rejected", odReportData.rejected],
+      [""],
+      ["Generated On", new Date().toLocaleString()]
+    ]
+    const summaryWs = XLSX.utils.aoa_to_sheet(summaryData)
+    XLSX.utils.book_append_sheet(wb, summaryWs, "Summary")
+
+    // Detailed OD requests
+    const odData = odReportData.requests.map((req: any) => ({
+      "Student Name": req.students?.name || "N/A",
+      "Email": req.students?.email || "N/A",
+      "Start Date": new Date(req.od_start_date).toLocaleDateString(),
+      "End Date": new Date(req.od_end_date).toLocaleDateString(),
+      "Reason": req.reason,
+      "Status": req.status.charAt(0).toUpperCase() + req.status.slice(1),
+      "Teacher Approved": req.teacher_approved ? "Yes" : "No",
+      "Admin Approved": req.admin_approved ? "Yes" : "No"
+    }))
+    const odWs = XLSX.utils.json_to_sheet(odData)
+    XLSX.utils.book_append_sheet(wb, odWs, "OD Requests")
+
+    XLSX.writeFile(wb, `od_report_${Date.now()}.xlsx`)
   }
 
   return (
@@ -436,6 +577,138 @@ export default function TeacherReports() {
                       </div>
                     </div>
                   )}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* OD Report Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>📋 OD Request Reports</CardTitle>
+            <CardDescription>
+              Generate reports for On-Duty requests by class
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Class Selector */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Select Class</Label>
+                <select
+                  value={odReportClass}
+                  onChange={(e) => setOdReportClass(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">-- Select a Class --</option>
+                  {assignments.map((a) => (
+                    <option key={a.class.id} value={a.class.id}>
+                      {a.class.class_name} {a.class.section}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <Button 
+                  onClick={fetchODReport}
+                  disabled={odLoading || !odReportClass}
+                  className="flex-1"
+                >
+                  {odLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Generate Report
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* OD Report Results */}
+            {odReportData && (
+              <>
+                {/* Summary Statistics */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="p-4 border rounded-lg bg-blue-50">
+                    <p className="text-sm text-gray-600">Total Requests</p>
+                    <p className="text-2xl font-bold text-blue-600">{odReportData.total}</p>
+                  </div>
+                  <div className="p-4 border rounded-lg bg-yellow-50">
+                    <p className="text-sm text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600">{odReportData.pending}</p>
+                  </div>
+                  <div className="p-4 border rounded-lg bg-green-50">
+                    <p className="text-sm text-gray-600">Approved</p>
+                    <p className="text-2xl font-bold text-green-600">{odReportData.approved}</p>
+                  </div>
+                  <div className="p-4 border rounded-lg bg-red-50">
+                    <p className="text-sm text-gray-600">Rejected</p>
+                    <p className="text-2xl font-bold text-red-600">{odReportData.rejected}</p>
+                  </div>
+                </div>
+
+                {/* Detailed Table */}
+                <div>
+                  <h3 className="font-semibold mb-3">OD Requests Details</h3>
+                  <div className="border rounded-lg overflow-auto max-h-96">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="p-2 text-left">Student Name</th>
+                          <th className="p-2 text-left">Email</th>
+                          <th className="p-2 text-left">Start Date</th>
+                          <th className="p-2 text-left">End Date</th>
+                          <th className="p-2 text-left">Reason</th>
+                          <th className="p-2 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {odReportData.requests.map((request: any, idx: number) => (
+                          <tr key={idx} className="border-t">
+                            <td className="p-2">{request.students?.name || "N/A"}</td>
+                            <td className="p-2 text-xs">{request.students?.email || "N/A"}</td>
+                            <td className="p-2">{new Date(request.od_start_date).toLocaleDateString()}</td>
+                            <td className="p-2">{new Date(request.od_end_date).toLocaleDateString()}</td>
+                            <td className="p-2 text-xs">{request.reason}</td>
+                            <td className="p-2 text-center">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                request.status === "approved" ? "bg-green-100 text-green-800" :
+                                request.status === "rejected" ? "bg-red-100 text-red-800" :
+                                "bg-yellow-100 text-yellow-800"
+                              }`}>
+                                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Export Buttons */}
+                <div className="flex gap-2 justify-end">
+                  <Button 
+                    onClick={exportODToPDF}
+                    variant="outline"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download PDF
+                  </Button>
+                  <Button 
+                    onClick={exportODToCSV}
+                    variant="outline"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download CSV
+                  </Button>
                 </div>
               </>
             )}
