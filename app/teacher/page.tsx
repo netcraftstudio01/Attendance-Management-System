@@ -125,13 +125,13 @@ export default function TeacherDashboard() {
         .from('od_requests')
         .select(`
           id,
-          od_date,
+          od_start_date,
+          od_end_date,
           reason,
           status,
           teacher_approved,
           admin_approved,
           students (id, name, email),
-          subjects (id, subject_name),
           classes (id, class_name)
         `)
         .eq('teacher_id', teacherId)
@@ -1091,7 +1091,23 @@ export default function TeacherDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {pendingODRequests.map((request) => (
+                {pendingODRequests.map((request) => {
+                  const startDate = new Date(request.od_start_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                  const endDate = new Date(request.od_end_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                  const daysDuration = Math.ceil(
+                    (new Date(request.od_end_date).getTime() - new Date(request.od_start_date).getTime()) / 
+                    (1000 * 60 * 60 * 24)
+                  ) + 1
+                  
+                  return (
                   <div key={request.id} className="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
                     <div className="flex justify-between items-start gap-4 mb-3">
                       <div className="flex-1">
@@ -1100,14 +1116,10 @@ export default function TeacherDashboard() {
                           {request.students?.email}
                         </p>
                         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                          📅 {new Date(request.od_date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
+                          📅 {startDate} to {endDate} ({daysDuration} {daysDuration === 1 ? 'day' : 'days'})
                         </p>
                         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                          📚 {request.subjects?.subject_name}
+                          📍 {request.classes?.class_name}
                         </p>
                       </div>
                       <span className="px-2 py-1 text-xs bg-yellow-200 text-yellow-800 rounded-full">
@@ -1132,7 +1144,8 @@ export default function TeacherDashboard() {
                       </Button>
                     </div>
                   </div>
-                ))}
+                )
+                })}
               </div>
             </CardContent>
           </Card>
