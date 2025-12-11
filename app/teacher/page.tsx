@@ -398,6 +398,17 @@ export default function TeacherDashboard() {
     fetchTeacherData(parsedUser.id)
   }, []) // Remove router dependency to prevent re-fetching
 
+  // Live polling for OD requests every 30 seconds
+  useEffect(() => {
+    if (!user) return
+
+    const interval = setInterval(() => {
+      fetchPendingODRequests(user.id)
+    }, 30000) // Update every 30 seconds
+
+    return () => clearInterval(interval)
+  }, [user])
+
   const fetchTeacherData = async (teacherId: string) => {
     try {
       // Fetch teacher's assigned classes and subjects
@@ -804,6 +815,62 @@ export default function TeacherDashboard() {
           </p>
         </div>
 
+        {/* Pending OD Requests Alert */}
+        {pendingODRequests.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">📋 Pending OD Requests</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                {pendingODRequests.length} {pendingODRequests.length === 1 ? 'request' : 'requests'} waiting for your approval
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {pendingODRequests.slice(0, 3).map((request) => {
+                  const startDate = new Date(request.od_start_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                  const endDate = new Date(request.od_end_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                  
+                  return (
+                    <div key={request.id} className="flex justify-between items-start gap-2 p-3 bg-white rounded-lg border border-amber-100">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm">{request.students?.name}</p>
+                        <p className="text-xs text-muted-foreground">{request.students?.email}</p>
+                        <p className="text-xs text-muted-foreground mt-1">📅 {startDate} to {endDate}</p>
+                      </div>
+                      <span className="px-2 py-1 text-xs bg-amber-100 text-amber-800 rounded-full whitespace-nowrap">
+                        ⏳ Pending
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+              {pendingODRequests.length > 3 && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  +{pendingODRequests.length - 3} more requests
+                </p>
+              )}
+              <Button
+                variant="outline"
+                className="w-full mt-3 text-sm"
+                onClick={() => {
+                  const odSection = document.querySelector('[data-od-section]')
+                  if (odSection) {
+                    odSection.scrollIntoView({ behavior: 'smooth' })
+                  }
+                }}
+              >
+                View All OD Requests
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Assignments Overview */}
         {assignments.length > 0 && (
           <Card>
@@ -1082,7 +1149,7 @@ export default function TeacherDashboard() {
 
         {/* OD Approvals Section */}
         {pendingODRequests.length > 0 && (
-          <Card>
+          <Card data-od-section>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">OD Approval Requests</CardTitle>
               <CardDescription className="text-xs sm:text-sm">

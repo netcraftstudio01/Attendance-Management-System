@@ -21,6 +21,18 @@ interface DashboardStats {
   totalTeachers: number
 }
 
+interface ODRequest {
+  id: string
+  od_start_date: string
+  od_end_date: string
+  reason: string
+  status: string
+  teacher_approved: boolean
+  admin_approved: boolean
+  students?: { name: string; email: string }
+  classes?: { class_name: string }
+}
+
 export default function AdminDashboard() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
@@ -28,6 +40,7 @@ export default function AdminDashboard() {
     totalStudents: 0,
     totalTeachers: 0,
   })
+  const [pendingODRequests, setPendingODRequests] = useState<ODRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
 
@@ -48,10 +61,21 @@ export default function AdminDashboard() {
     // User is authorized
     setIsAuthorized(true)
     setUser(parsedUser)
-    fetchDashboardData()
+    fetchDashboardData(parsedUser.id)
   }, []) // Remove router dependency to prevent re-fetching
 
-  const fetchDashboardData = async () => {
+  // Live polling for OD requests every 30 seconds
+  useEffect(() => {
+    if (!user) return
+
+    const interval = setInterval(() => {
+      fetchPendingODRequests(user.id)
+    }, 30000) // Update every 30 seconds
+
+    return () => clearInterval(interval)
+  }, [user])
+
+  const fetchDashboardData = async (adminId: string) => {
     try {
       setLoading(true)
 
@@ -98,10 +122,39 @@ export default function AdminDashboard() {
         totalStudents: totalStudents,
         totalTeachers: totalTeachers,
       })
+
+      // Fetch pending OD requests
+      await fetchPendingODRequests(adminId)
     } catch (error) {
       console.error("Error fetching dashboard data:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchPendingODRequests = async (adminId: string) => {
+    try {
+      const { data } = await supabase
+        .from('od_requests')
+        .select(`
+          id,
+          od_start_date,
+          od_end_date,
+          reason,
+          status,
+          teacher_approved,
+          admin_approved,
+          students (name, email),
+          classes (class_name)
+        `)
+        .eq('admin_id', adminId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      setPendingODRequests(data || [])
+    } catch (error) {
+      console.error('Error fetching OD requests:', error)
     }
   }
 
@@ -124,7 +177,7 @@ export default function AdminDashboard() {
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <Button 
-              onClick={fetchDashboardData} 
+              onClick={() => user && fetchDashboardData(user.id)} 
               disabled={loading}
               className="flex-1 sm:flex-none text-sm"
             >
@@ -149,6 +202,58 @@ export default function AdminDashboard() {
             description="Active teachers"
           />
         </div>
+
+        {/* Pending OD Requests Section */}
+        {pendingODRequests.length > 0 && (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">📋 Pending OD Requests</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                {pendingODRequests.length} {pendingODRequests.length === 1 ? 'request' : 'requests'} awaiting approval
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {pendingODRequests.map((request) => {
+                  const startDate = new Date(request.od_start_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                  const endDate = new Date(request.od_end_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                  
+                  return (
+                    <div key={request.id} className="flex justify-between items-start gap-2 p-3 bg-white rounded-lg border border-blue-100">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm">{request.students?.name}</p>
+                        <p className="text-xs text-muted-foreground">{request.students?.email}</p>
+                        <p className="text-xs text-muted-foreground mt-1">📅 {startDate} to {endDate}</p>
+                        <p className="text-xs text-gray-600 mt-1">📚 {request.classes?.class_name}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push("/admin/od-approvals")}
+                        className="text-xs whitespace-nowrap"
+                      >
+                        Review →
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+              <Button
+                variant="outline"
+                className="w-full mt-3 text-sm"
+                onClick={() => router.push("/admin/od-approvals")}
+              >
+                View All OD Requests
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -195,6 +300,23 @@ export default function AdminDashboard() {
                   <span className="sm:hidden">Students</span>
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">OD Requests</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Review student on-duty requests</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={() => router.push("/admin/od-approvals")} 
+                className="w-full text-sm sm:text-base"
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">View OD Requests</span>
+                <span className="sm:hidden">OD Requests</span>
+              </Button>
             </CardContent>
           </Card>
 
