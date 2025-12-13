@@ -79,54 +79,33 @@ export default function AdminDashboard() {
     try {
       setLoading(true)
 
-      // Debug: First fetch all users to see what exists
-      const { data: allUsers, error: debugError } = await supabase
-        .from("users")
-        .select("id, email, name, role, user_type")
-        .limit(10)
+      // Use API route that bypasses RLS
+      const response = await fetch(`/api/admin/dashboard?adminId=${adminId}`)
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
 
-      console.log("🔍 Debug - Sample users:", allUsers)
-      if (debugError) console.error("Debug error:", debugError)
+      const data = await response.json()
 
-      // Fetch students from the students table (not users table)
-      const { data: studentsData, count: studentCount, error: studentsError } = await supabase
-        .from("students")
-        .select("*", { count: "exact" })
+      if (data.success) {
+        setStats({
+          totalStudents: data.stats.totalStudents,
+          totalTeachers: data.stats.totalTeachers,
+        })
 
-      // Fetch teachers from users table
-      const { data: teachersByRole, count: teacherCountByRole } = await supabase
-        .from("users")
-        .select("*", { count: "exact" })
-        .eq("role", "teacher")
+        console.log('📊 Dashboard Stats:', data.stats)
+        console.log('📋 OD Requests:', data.odRequests)
 
-      const { data: teachersByUserType, count: teacherCountByUserType } = await supabase
-        .from("users")
-        .select("*", { count: "exact" })
-        .eq("user_type", "teacher")
-
-      const totalStudents = studentCount || 0
-      const totalTeachers = (teacherCountByRole || 0) + (teacherCountByUserType || 0)
-
-      console.log("📊 Dashboard Stats:", {
-        students: totalStudents,
-        teachers: totalTeachers,
-        studentsFromStudentsTable: studentCount,
-        studentsError,
-        teachersByRole: teacherCountByRole,
-        teachersByUserType: teacherCountByUserType,
-        sampleStudents: (studentsData || []).slice(0, 3),
-        sampleTeachers: [...(teachersByRole || []), ...(teachersByUserType || [])].slice(0, 3)
-      })
-
-      setStats({
-        totalStudents: totalStudents,
-        totalTeachers: totalTeachers,
-      })
-
-      // Fetch pending OD requests
-      await fetchPendingODRequests(adminId)
+        // Set pending OD requests if they exist
+        if (data.odRequests && Array.isArray(data.odRequests)) {
+          setPendingODRequests(data.odRequests)
+        }
+      } else {
+        console.error('❌ Dashboard API error:', data.error)
+      }
     } catch (error) {
-      console.error("Error fetching dashboard data:", error)
+      console.error('❌ Error fetching dashboard data:', error)
     } finally {
       setLoading(false)
     }
