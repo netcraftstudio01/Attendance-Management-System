@@ -1481,20 +1481,50 @@ The system includes automatic session creation. To enable it:
 -- MIGRATION: Fix Unique Constraints for Multi-Department Setup
 -- ═══════════════════════════════════════════════════════════════════════
 -- Run this section if you get "duplicate key value violates unique constraint"
--- This happens when constraints include department but all records have same default
+-- This happens when there are duplicate classes or subjects
 -- ═══════════════════════════════════════════════════════════════════════
 
--- Drop old constraints that include department
+-- STEP 1: Remove duplicate classes (keep only the latest one for each combination)
+BEGIN;
+
+DELETE FROM classes 
+WHERE id NOT IN (
+  SELECT MAX(id) 
+  FROM classes 
+  GROUP BY class_name, section, year
+);
+
+SELECT 'Removed duplicate classes' as status;
+
+COMMIT;
+
+-- STEP 2: Remove duplicate subjects (keep only the latest one for each code)
+BEGIN;
+
+DELETE FROM subjects 
+WHERE id NOT IN (
+  SELECT MAX(id) 
+  FROM subjects 
+  GROUP BY subject_code
+);
+
+SELECT 'Removed duplicate subjects' as status;
+
+COMMIT;
+
+-- STEP 3: Drop old constraints that include department
 BEGIN;
 
 -- For classes table: drop old constraint with department
 ALTER TABLE classes 
 DROP CONSTRAINT IF EXISTS classes_class_name_section_year_department_key CASCADE;
 
--- Create new constraint without department
+-- Create new constraint without department (now that duplicates are removed)
 ALTER TABLE classes 
 ADD CONSTRAINT classes_class_name_section_year_key 
 UNIQUE (class_name, section, year);
+
+SELECT 'Classes constraint created' as status;
 
 COMMIT;
 
@@ -1504,11 +1534,13 @@ BEGIN;
 ALTER TABLE subjects 
 DROP CONSTRAINT IF EXISTS subjects_subject_code_department_key CASCADE;
 
--- Create new constraint without department
+-- Create new constraint without department (now that duplicates are removed)
 ALTER TABLE subjects 
 ADD CONSTRAINT subjects_subject_code_key 
 UNIQUE (subject_code);
 
+SELECT 'Subjects constraint created' as status;
+
 COMMIT;
 
-SELECT '✅ Migration complete: Unique constraints fixed for multi-department setup' as result;
+SELECT '✅ Migration complete: Duplicates removed and unique constraints created' as result;
