@@ -262,6 +262,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
         name: user.name,
+        department: user.department || 'General',
         is_temporary: user.is_temporary || false,
       },
       token: sessionToken,
