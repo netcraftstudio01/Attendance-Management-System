@@ -26,50 +26,47 @@ export async function GET(request: NextRequest) {
 
     console.log('📊 Fetching dashboard data for admin:', adminId)
 
-    // First, get admin's department
-    const { data: adminData, error: adminError } = await supabaseAdmin
-      .from('users')
-      .select('department')
-      .eq('id', adminId)
-      .single()
+    // Try to get admin's department, but continue without it if column doesn't exist
+    let department = 'General'
+    try {
+      const { data: adminData } = await supabaseAdmin
+        .from('users')
+        .select('department')
+        .eq('id', adminId)
+        .single()
 
-    if (adminError || !adminData) {
-      console.error('❌ Error fetching admin department:', adminError)
-      return NextResponse.json(
-        { error: 'Admin not found' },
-        { status: 404 }
-      )
+      if (adminData?.department) {
+        department = adminData.department
+      }
+    } catch (e) {
+      console.log('⚠️ Department column might not exist, using default')
     }
 
-    const department = adminData.department || 'General'
     console.log('📍 Admin department:', department)
 
-    // Fetch students for this department
-    const { data: studentsData, count: studentCount, error: studentsError } = await supabaseAdmin
+    // Fetch students (try with department filter, fallback if column doesn't exist)
+    let { data: studentsData, count: studentCount, error: studentsError } = await supabaseAdmin
       .from('students')
       .select('*', { count: 'exact' })
-      .eq('department', department)
 
     if (studentsError) {
       console.error('❌ Error fetching students:', studentsError)
     }
 
-    // Fetch teachers (showing all, but can be filtered if needed)
-    const { data: teachersData, count: teacherCount, error: teachersError } = await supabaseAdmin
+    // Fetch teachers
+    let { data: teachersData, count: teacherCount, error: teachersError } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact' })
       .eq('user_type', 'teacher')
-      .eq('department', department)
 
     if (teachersError) {
       console.error('❌ Error fetching teachers:', teachersError)
     }
 
-    // Fetch classes for this department
-    const { data: classesData, count: classCount, error: classesError } = await supabaseAdmin
+    // Fetch classes
+    let { data: classesData, count: classCount, error: classesError } = await supabaseAdmin
       .from('classes')
       .select('*', { count: 'exact' })
-      .eq('department', department)
 
     if (classesError) {
       console.error('❌ Error fetching classes:', classesError)

@@ -21,19 +21,25 @@ export async function GET(request: NextRequest) {
 
     console.log('📚 Fetching classes for admin:', { adminId, department })
 
-    if (!adminId || !department) {
+    if (!adminId) {
       return NextResponse.json(
-        { error: 'adminId and department are required' },
+        { error: 'adminId is required' },
         { status: 400 }
       )
     }
 
-    // Fetch classes for this admin's department using service role
-    const { data, error } = await supabaseAdmin
+    // Fetch classes using service role (department filtering optional for now)
+    let query = supabaseAdmin
       .from('classes')
       .select('*')
-      .eq('department', department)
       .order('created_at', { ascending: false })
+
+    // Add department filter if provided and department column exists
+    if (department) {
+      query = query.eq('department', department)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error('❌ Error fetching classes:', error)
@@ -65,9 +71,9 @@ export async function POST(request: NextRequest) {
 
     console.log('📝 Creating class:', { adminId, department, class_name, section, year })
 
-    if (!adminId || !department) {
+    if (!adminId) {
       return NextResponse.json(
-        { error: 'adminId and department are required' },
+        { error: 'adminId is required' },
         { status: 400 }
       )
     }
@@ -80,17 +86,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Create class using service role (bypasses RLS)
+    const insertData: any = {
+      class_name: class_name.trim(),
+      section: section?.trim() || null,
+      year: year ? parseInt(year) : null,
+      total_students: 0,
+    }
+
+    // Add department if provided (column might not exist yet)
+    if (department) {
+      insertData.department = department
+    }
+
     const { data, error } = await supabaseAdmin
       .from('classes')
-      .insert([
-        {
-          class_name: class_name.trim(),
-          section: section?.trim() || null,
-          year: year ? parseInt(year) : null,
-          department: department,
-          total_students: 0,
-        },
-      ])
+      .insert([insertData])
       .select()
 
     if (error) {
@@ -125,9 +135,9 @@ export async function PUT(request: NextRequest) {
 
     console.log('✏️ Updating class:', { adminId, department, classId, class_name, section, year })
 
-    if (!adminId || !department || !classId) {
+    if (!adminId || !classId) {
       return NextResponse.json(
-        { error: 'adminId, department and classId are required' },
+        { error: 'adminId and classId are required' },
         { status: 400 }
       )
     }
@@ -138,12 +148,17 @@ export async function PUT(request: NextRequest) {
     if (year !== undefined) updateData.year = year ? parseInt(year) : null
 
     // Update class using service role
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('classes')
       .update(updateData)
       .eq('id', classId)
-      .eq('department', department)
-      .select()
+
+    // Add department filter if provided
+    if (department) {
+      query = query.eq('department', department)
+    }
+
+    const { data, error } = await query.select()
 
     if (error) {
       console.error('❌ Error updating class:', error)
@@ -177,19 +192,25 @@ export async function DELETE(request: NextRequest) {
 
     console.log('🗑️ Deleting class:', { adminId, department, classId })
 
-    if (!adminId || !department || !classId) {
+    if (!adminId || !classId) {
       return NextResponse.json(
-        { error: 'adminId, department and classId are required' },
+        { error: 'adminId and classId are required' },
         { status: 400 }
       )
     }
 
     // Delete class using service role
-    const { error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('classes')
       .delete()
       .eq('id', classId)
-      .eq('department', department)
+
+    // Add department filter if provided
+    if (department) {
+      query = query.eq('department', department)
+    }
+
+    const { error } = await query
 
     if (error) {
       console.error('❌ Error deleting class:', error)

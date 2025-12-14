@@ -19,21 +19,27 @@ export async function GET(req: NextRequest) {
     const adminId = searchParams.get('adminId');
     const department = searchParams.get('department');
 
-    if (!adminId || !department) {
+    if (!adminId) {
       return NextResponse.json(
-        { error: 'adminId and department are required' },
+        { error: 'adminId is required' },
         { status: 400 }
       );
     }
 
     console.log('📚 GET /api/admin/subjects', { adminId, department });
 
-    // Fetch subjects for admin's department
-    const { data, error } = await supabaseAdmin
+    // Fetch subjects (department filtering is optional for now)
+    let query = supabaseAdmin
       .from('subjects')
       .select('*')
-      .eq('department', department)
       .order('subject_name', { ascending: true });
+
+    // Only filter by department if provided
+    if (department) {
+      query = query.eq('department', department);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('❌ Error fetching subjects:', error);
@@ -57,25 +63,31 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { subject_code, subject_name, department, adminId, credits, semester } = body;
 
-    if (!subject_code || !subject_name || !department || !adminId) {
+    if (!subject_code || !subject_name || !adminId) {
       return NextResponse.json(
-        { error: 'subject_code, subject_name, department, and adminId are required' },
+        { error: 'subject_code, subject_name, and adminId are required' },
         { status: 400 }
       );
     }
 
     console.log('📝 POST /api/admin/subjects', { subject_code, subject_name, department });
 
-    // Insert subject with department
+    // Insert subject (department is optional for now)
+    const insertData: any = {
+      subject_code: subject_code.trim(),
+      subject_name: subject_name.trim(),
+      credits: credits || null,
+      semester: semester || null,
+    };
+
+    // Add department if provided
+    if (department) {
+      insertData.department = department;
+    }
+
     const { data, error } = await supabaseAdmin
       .from('subjects')
-      .insert({
-        subject_code: subject_code.trim(),
-        subject_name: subject_name.trim(),
-        department: department,
-        credits: credits || null,
-        semester: semester || null,
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -105,17 +117,17 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { id, subject_code, subject_name, department, adminId, credits, semester } = body;
 
-    if (!id || !subject_code || !subject_name || !department || !adminId) {
+    if (!id || !subject_code || !subject_name || !adminId) {
       return NextResponse.json(
-        { error: 'id, subject_code, subject_name, department, and adminId are required' },
+        { error: 'id, subject_code, subject_name, and adminId are required' },
         { status: 400 }
       );
     }
 
     console.log('✏️ PUT /api/admin/subjects', { id, subject_code, subject_name, department });
 
-    // Update only if subject belongs to admin's department
-    const { data, error } = await supabaseAdmin
+    // Update subject
+    let query = supabaseAdmin
       .from('subjects')
       .update({
         subject_code: subject_code.trim(),
@@ -124,8 +136,14 @@ export async function PUT(req: NextRequest) {
         semester: semester || null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id)
-      .eq('department', department)
+      .eq('id', id);
+
+    // Add department filter if provided
+    if (department) {
+      query = query.eq('department', department);
+    }
+
+    const { data, error } = await query
       .select()
       .single();
 
@@ -155,21 +173,27 @@ export async function DELETE(req: NextRequest) {
     const body = await req.json();
     const { id, department, adminId } = body;
 
-    if (!id || !department || !adminId) {
+    if (!id || !adminId) {
       return NextResponse.json(
-        { error: 'id, department, and adminId are required' },
+        { error: 'id and adminId are required' },
         { status: 400 }
       );
     }
 
     console.log('🗑️ DELETE /api/admin/subjects', { id, department });
 
-    // Delete only if subject belongs to admin's department
-    const { error } = await supabaseAdmin
+    // Delete subject
+    let query = supabaseAdmin
       .from('subjects')
       .delete()
-      .eq('id', id)
-      .eq('department', department);
+      .eq('id', id);
+
+    // Add department filter if provided
+    if (department) {
+      query = query.eq('department', department);
+    }
+
+    const { error } = await query;
 
     if (error) {
       console.error('❌ Error deleting subject:', error);
