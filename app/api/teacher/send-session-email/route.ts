@@ -222,11 +222,6 @@ export async function POST(request: NextRequest) {
             <span class="info-value">${subjectData?.subject_code || 'N/A'} - ${subjectData?.subject_name || 'N/A'}</span>
           </div>
           
-          <div class="info-row">
-            <span class="info-label">Session Code:</span>
-            <span class="info-value session-code">${session.session_code}</span>
-          </div>
-          
           <div class="qr-code">
             <p style="margin-bottom: 10px; color: #666;">QR Code for Students:</p>
             <img src="cid:qrcode" alt="QR Code" style="max-width: 300px; border: 2px solid #667eea; padding: 10px; background: white;">
@@ -244,8 +239,7 @@ export async function POST(request: NextRequest) {
         
         <h3>How Students Can Mark Attendance:</h3>
         <ol>
-          <li>Scan the QR code above, OR</li>
-          <li>Enter the session code manually: <strong>${session.session_code}</strong></li>
+          <li>Scan the QR code above</li>
           <li>Verify their identity with OTP sent to their email</li>
         </ol>
         

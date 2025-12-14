@@ -184,15 +184,6 @@ export async function POST(request: NextRequest) {
           </div>
           
           <div class="info-row">
-            <span class="info-label">🔑 Session Code:</span>
-            <span class="info-value">See below</span>
-          </div>
-          
-          <div class="session-code">
-            ${session.session_code}
-          </div>
-          
-          <div class="info-row">
             <span class="info-label">⏰ Session Expires:</span>
             <span class="info-value"><strong style="color: #dc3545;">${expiryTime}</strong></span>
           </div>
@@ -201,8 +192,7 @@ export async function POST(request: NextRequest) {
         <div style="background: #e7f3ff; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
           <strong>📱 What Students Need to Do:</strong>
           <ol style="margin: 10px 0; padding-left: 20px;">
-            <li>Scan the QR code (from your previous email), OR</li>
-            <li>Enter session code: <strong>${session.session_code}</strong></li>
+            <li>Scan the QR code (from your previous email)</li>
             <li>Verify with OTP sent to their email</li>
           </ol>
         </div>
@@ -211,7 +201,6 @@ export async function POST(request: NextRequest) {
           <strong>⚠️ Important Reminders:</strong>
           <ul style="margin: 10px 0; padding-left: 20px;">
             <li>Session is valid for <strong>5 minutes only</strong></li>
-            <li>Announce the session code to students</li>
             <li>Show the QR code from your previous email</li>
             <li>Students must mark attendance before ${expiryTime}</li>
           </ul>
