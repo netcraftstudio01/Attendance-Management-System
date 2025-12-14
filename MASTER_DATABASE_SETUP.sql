@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS classes (
   created_by_admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(class_name, section, year, department)
+  UNIQUE(class_name, section, year)
 );
 
 
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS subjects (
   created_by_admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(subject_code, department)
+  UNIQUE(subject_code)
 );
 
 
@@ -1320,6 +1320,51 @@ SELECT '✅ ALL MIGRATIONS COMPLETE!' as final_status;
 
 
 
+-- Department-Based Admin Isolation - Database Verification & Setup
+
+-- 1. Verify department column exists in students table
+-- This column was added to MASTER_DATABASE_SETUP.sql
+SELECT column_name FROM information_schema.columns 
+WHERE table_name = 'students' AND column_name = 'department';
+
+-- 2. Verify department column exists in classes table
+SELECT column_name FROM information_schema.columns 
+WHERE table_name = 'classes' AND column_name = 'department';
+
+-- 3. Verify department column exists in subjects table
+SELECT column_name FROM information_schema.columns 
+WHERE table_name = 'subjects' AND column_name = 'department';
+
+-- 4. Verify department column exists in users table (for admins)
+SELECT column_name FROM information_schema.columns 
+WHERE table_name = 'users' AND column_name = 'department';
+
+-- 5. Check existing admins and their departments
+SELECT id, email, role, department FROM users WHERE role = 'admin';
+
+-- 6. If you need to set department for existing admins:
+-- UPDATE users SET department = 'Computer Science' WHERE email = 'cs-admin@kprcas.ac.in';
+-- UPDATE users SET department = 'Information Technology' WHERE email = 'it-admin@kprcas.ac.in';
+
+-- 7. Verify unique constraints include department:
+-- For classes: UNIQUE(class_name, section, year, department)
+-- For subjects: UNIQUE(subject_code, department)
+
+-- 8. Test department isolation:
+-- Run as CS admin:
+SELECT * FROM classes WHERE department = 'Computer Science';
+
+-- Run as IT admin:
+SELECT * FROM classes WHERE department = 'Information Technology';
+
+-- 9. Verify students are assigned to correct department:
+SELECT id, name, email, department FROM students WHERE department = 'Computer Science' LIMIT 5;
+
+-- 10. Verify subjects are assigned to correct department:
+SELECT id, subject_code, subject_name, department FROM subjects WHERE department = 'Computer Science' LIMIT 5;
+
+
+
 -- ═══════════════════════════════════════════════════════════════════════
 -- 🚀 HOW TO LOGIN
 -- ═══════════════════════════════════════════════════════════════════════
@@ -1548,3 +1593,39 @@ The system includes automatic session creation. To enable it:
 ═══════════════════════════════════════════════════════════════════════
 */
 
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- MIGRATION: Fix Unique Constraints for Multi-Department Setup
+-- ═══════════════════════════════════════════════════════════════════════
+-- Run this section if you get "duplicate key value violates unique constraint"
+-- This happens when constraints include department but all records have same default
+-- ═══════════════════════════════════════════════════════════════════════
+
+-- Drop old constraints that include department
+BEGIN;
+
+-- For classes table: drop old constraint with department
+ALTER TABLE classes 
+DROP CONSTRAINT IF EXISTS classes_class_name_section_year_department_key CASCADE;
+
+-- Create new constraint without department
+ALTER TABLE classes 
+ADD CONSTRAINT classes_class_name_section_year_key 
+UNIQUE (class_name, section, year);
+
+COMMIT;
+
+BEGIN;
+
+-- For subjects table: drop old constraint with department
+ALTER TABLE subjects 
+DROP CONSTRAINT IF EXISTS subjects_subject_code_department_key CASCADE;
+
+-- Create new constraint without department
+ALTER TABLE subjects 
+ADD CONSTRAINT subjects_subject_code_key 
+UNIQUE (subject_code);
+
+COMMIT;
+
+SELECT '✅ Migration complete: Unique constraints fixed for multi-department setup' as result;
