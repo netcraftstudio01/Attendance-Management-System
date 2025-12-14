@@ -191,9 +191,18 @@ export default function AdminManagementPage() {
       const department = userObj.department || "General"
       const response = await fetch(`/api/admin/classes?adminId=${user.id}&department=${department}`)
       const data = await response.json()
-      setClasses(data || [])
+      // Handle success response with data property
+      if (data?.success && Array.isArray(data.data)) {
+        setClasses(data.data)
+      } else if (Array.isArray(data)) {
+        setClasses(data)
+      } else {
+        console.warn("Unexpected response format from classes API:", data)
+        setClasses([])
+      }
     } catch (error) {
       console.error("Error fetching classes:", error)
+      setClasses([])
     }
   }
 
@@ -204,9 +213,16 @@ export default function AdminManagementPage() {
       const department = userObj.department || "General"
       const response = await fetch(`/api/admin/subjects?adminId=${user.id}&department=${department}`)
       const data = await response.json()
-      setSubjects(data || [])
+      // Ensure data is always an array
+      if (Array.isArray(data)) {
+        setSubjects(data)
+      } else {
+        console.warn("Expected array from subjects API, got:", typeof data)
+        setSubjects([])
+      }
     } catch (error) {
       console.error("Error fetching subjects:", error)
+      setSubjects([])
     }
   }
 
