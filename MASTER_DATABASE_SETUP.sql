@@ -1485,28 +1485,36 @@ The system includes automatic session creation. To enable it:
 -- ═══════════════════════════════════════════════════════════════════════
 
 -- STEP 1: Remove duplicate classes (keep only the latest one for each combination)
+-- First, identify and keep only the most recent record for each class combination
 BEGIN;
 
+-- Create a temporary table with the IDs to keep
+CREATE TEMP TABLE classes_to_keep AS
+SELECT DISTINCT ON (class_name, section, year) id
+FROM classes
+ORDER BY class_name, section, year, created_at DESC;
+
+-- Delete everything that's NOT in the keep list
 DELETE FROM classes 
-WHERE id NOT IN (
-  SELECT DISTINCT ON (class_name, section, year) id
-  FROM classes
-  ORDER BY class_name, section, year, created_at DESC
-);
+WHERE id NOT IN (SELECT id FROM classes_to_keep);
 
 SELECT 'Removed duplicate classes' as status;
 
 COMMIT;
 
 -- STEP 2: Remove duplicate subjects (keep only the latest one for each code)
+-- First, identify and keep only the most recent record for each subject
 BEGIN;
 
+-- Create a temporary table with the IDs to keep
+CREATE TEMP TABLE subjects_to_keep AS
+SELECT DISTINCT ON (subject_code) id
+FROM subjects
+ORDER BY subject_code, created_at DESC;
+
+-- Delete everything that's NOT in the keep list
 DELETE FROM subjects 
-WHERE id NOT IN (
-  SELECT DISTINCT ON (subject_code) id
-  FROM subjects
-  ORDER BY subject_code, created_at DESC
-);
+WHERE id NOT IN (SELECT id FROM subjects_to_keep);
 
 SELECT 'Removed duplicate subjects' as status;
 
@@ -1515,9 +1523,12 @@ COMMIT;
 -- STEP 3: Drop old constraints that include department
 BEGIN;
 
--- For classes table: drop old constraint with department
+-- For classes table: drop BOTH old and new constraints to recreate cleanly
 ALTER TABLE classes 
 DROP CONSTRAINT IF EXISTS classes_class_name_section_year_department_key CASCADE;
+
+ALTER TABLE classes 
+DROP CONSTRAINT IF EXISTS classes_class_name_section_year_key CASCADE;
 
 -- Create new constraint without department (now that duplicates are removed)
 ALTER TABLE classes 
@@ -1530,9 +1541,12 @@ COMMIT;
 
 BEGIN;
 
--- For subjects table: drop old constraint with department
+-- For subjects table: drop BOTH old and new constraints to recreate cleanly
 ALTER TABLE subjects 
 DROP CONSTRAINT IF EXISTS subjects_subject_code_department_key CASCADE;
+
+ALTER TABLE subjects 
+DROP CONSTRAINT IF EXISTS subjects_subject_code_key CASCADE;
 
 -- Create new constraint without department (now that duplicates are removed)
 ALTER TABLE subjects 
@@ -1544,3 +1558,4 @@ SELECT 'Subjects constraint created' as status;
 COMMIT;
 
 SELECT '✅ Migration complete: Duplicates removed and unique constraints created' as result;
+-- ═══════════════════════════════════════════════════════════════════════ --
