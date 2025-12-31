@@ -396,6 +396,25 @@ export default function TeacherDashboard() {
             
             // Mark this start as processed so it doesn't start again
             setProcessedSessions(prev => new Set(prev).add(startKey))
+
+            // Send QR code email
+            try {
+              const emailResponse = await fetch("/api/teacher/send-session-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                  sessionId: newSession.id,
+                  teacherEmail: user.email 
+                }),
+              })
+
+              const emailResult = await emailResponse.json()
+              if (emailResult.success) {
+                console.log("✅ QR code email sent for auto-started session")
+              }
+            } catch (emailError) {
+              console.error("⚠️ Error sending email for auto-started session:", emailError)
+            }
           } catch (error) {
             console.error("❌ Error in auto-start logic:", error)
           }
@@ -618,7 +637,33 @@ export default function TeacherDashboard() {
 
       console.log("✅ Session created successfully:", session)
       setActiveSession(session)
-      alert(`✅ Session started!\n\nSession Code: ${session.session_code}`)
+      
+      // Send QR code email to teacher
+      try {
+        console.log("📧 Sending QR code email to teacher...")
+        const emailResponse = await fetch("/api/teacher/send-session-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            sessionId: session.id,
+            teacherEmail: user.email 
+          }),
+        })
+
+        const emailResult = await emailResponse.json()
+        console.log("📨 Email API Response:", emailResult)
+        
+        if (emailResult.success) {
+          console.log("✅ QR code email sent successfully")
+          alert(`✅ Session started!\n\nQR code has been sent to:\n${user.email}`)
+        } else {
+          console.warn("⚠️ Email send failed:", emailResult)
+          alert(`✅ Session started!\n\nSession Code: ${session.session_code}`)
+        }
+      } catch (emailError) {
+        console.error("❌ Error sending email:", emailError)
+        alert(`✅ Session started!\n\nSession Code: ${session.session_code}`)
+      }
     } catch (error) {
       console.error("❌ Error starting session:", error)
       console.error("Error type:", typeof error)
