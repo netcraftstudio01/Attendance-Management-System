@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { LogOut, User } from "lucide-react"
+import { SessionSwitcher } from "@/components/session-switcher"
 
 interface DashboardNavProps {
   userName?: string
@@ -43,6 +44,7 @@ export function DashboardNav({ userName, userEmail, userRole }: DashboardNavProp
             {userName && <p className="text-sm font-medium truncate max-w-[150px]">{userName}</p>}
             {userEmail && <p className="text-xs text-muted-foreground truncate max-w-[150px]">{userEmail}</p>}
           </div>
+          <SessionSwitcher />
           <Button variant="outline" size="sm" onClick={handleLogout} className="text-xs sm:text-sm h-8 sm:h-9">
             <LogOut className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
             <span className="hidden sm:inline">Logout</span>

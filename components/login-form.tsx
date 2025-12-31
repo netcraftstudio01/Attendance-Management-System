@@ -18,6 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { sessionManager } from "@/lib/session-manager"
 
 export function LoginForm({
   className,
@@ -69,7 +70,18 @@ export function LoginForm({
         throw new Error(data.error || "Invalid credentials")
       }
 
-      // Store user data and token in localStorage
+      // Add new session (supports concurrent logins)
+      const session = sessionManager.addSession({
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role,
+        name: data.user.name
+      })
+
+      // Set as active session
+      sessionManager.setActiveSession(session.sessionId)
+
+      // Keep old format for backward compatibility
       localStorage.setItem("user", JSON.stringify(data.user))
       localStorage.setItem("token", data.token)
 

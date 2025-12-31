@@ -156,40 +156,16 @@ export async function GET(request: NextRequest) {
 
         console.log(`✅ Session created for ${teacher.name} - ${subject.subject_code} - ${classData.class_name}`)
 
-        // Send email to teacher
-        try {
-          const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/teacher/send-session-email`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: newSession.id })
-          })
-
-          const emailResult = await emailResponse.json()
-          
-          if (emailResult.success) {
-            console.log(`✅ Email sent to ${teacher.email}`)
-            createdSessions.push({
-              teacher: teacher.name,
-              email: teacher.email,
-              class: `${classData.class_name} ${classData.section || ''}`,
-              subject: `${subject.subject_code} - ${subject.subject_name}`,
-              session_code: sessionCode,
-              expires_at: expiresAt.toISOString()
-            })
-          } else {
-            console.error(`Failed to send email to ${teacher.email}:`, emailResult.error)
-            errors.push({
-              teacher: teacher.name,
-              error: `Email failed: ${emailResult.error}`
-            })
-          }
-        } catch (emailError) {
-          console.error(`Error sending email to ${teacher.email}:`, emailError)
-          errors.push({
-            teacher: teacher.name,
-            error: `Email exception: ${emailError instanceof Error ? emailError.message : 'Unknown'}`
-          })
-        }
+        // No longer sending emails on session creation
+        // QR code emails will be sent when the class is created by admin
+        createdSessions.push({
+          teacher: teacher.name,
+          email: teacher.email,
+          class: `${classData.class_name} ${classData.section || ''}`,
+          subject: `${subject.subject_code} - ${subject.subject_name}`,
+          session_code: sessionCode,
+          expires_at: expiresAt.toISOString()
+        })
 
       } catch (error) {
         console.error('Error processing assignment:', error)

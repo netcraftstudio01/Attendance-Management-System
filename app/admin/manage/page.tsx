@@ -321,6 +321,7 @@ export default function AdminManagementPage() {
       section: formData.get("section") || null,
       year: formData.get("year") ? parseInt(formData.get("year") as string) : null,
       department: department,
+      class_email: formData.get("class_email"),
     }
 
     try {

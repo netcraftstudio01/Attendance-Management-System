@@ -62,9 +62,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { adminId, department, class_name, section, year } = body
+    const { adminId, department, class_name, section, year, class_email } = body
 
-    console.log('📝 Creating class:', { adminId, department, class_name, section, year })
+    console.log('📝 Creating class:', { adminId, department, class_name, section, year, class_email })
 
     if (!adminId) {
       return NextResponse.json(
@@ -80,12 +80,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!class_email) {
+      return NextResponse.json(
+        { error: 'class_email is required' },
+        { status: 400 }
+      )
+    }
+
     // Create class using service role (bypasses RLS)
     const insertData: any = {
       class_name: class_name.trim(),
       section: section?.trim() || null,
       year: year ? parseInt(year) : null,
       total_students: 0,
+      class_email: class_email.trim(),
     }
 
     // Try to add department if provided
@@ -121,6 +129,35 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ Class created:', data)
+
+    // Send QR code email to class email
+    if (class_email && data?.[0]) {
+      try {
+        const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/admin/send-class-qr-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            classEmail: class_email,
+            className: class_name,
+            section: section || null,
+            year: year || null,
+            department: department || null
+          })
+        })
+
+        const emailResult = await emailResponse.json()
+        
+        if (emailResult.success) {
+          console.log(`✅ QR code email sent to ${class_email}`)
+        } else {
+          console.warn(`⚠️ Failed to send QR code email to ${class_email}:`, emailResult.error)
+          // Don't fail the class creation if email fails
+        }
+      } catch (emailError) {
+        console.error(`⚠️ Error sending QR code email to ${class_email}:`, emailError)
+        // Don't fail the class creation if email fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

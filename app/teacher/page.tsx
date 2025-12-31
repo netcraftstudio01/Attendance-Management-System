@@ -15,8 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { AttendanceEditDialog } from "@/components/attendance-edit-dialog"
+import { Badge } from "@/components/ui/badge"
 import QRCode from "react-qr-code"
-import { Calendar, Users, CheckCircle, QrCode, GraduationCap } from "lucide-react"
+import { Calendar, Users, CheckCircle, QrCode, GraduationCap, Edit2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { generateComprehensivePDF, generateComprehensiveCSV } from "@/lib/reportGenerator"
 
@@ -119,6 +121,13 @@ export default function TeacherDashboard() {
   const [odRequestsForClass, setOdRequestsForClass] = useState<any[]>([])
   const [odSelectedClassId, setOdSelectedClassId] = useState("")
   const [showODRequestsView, setShowODRequestsView] = useState(false)
+
+  // Attendance editing
+  const [editAttendanceSessionId, setEditAttendanceSessionId] = useState<string>("")
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])
+  const [loadingAttendanceRecords, setLoadingAttendanceRecords] = useState(false)
+  const [showAttendanceEditDialog, setShowAttendanceEditDialog] = useState(false)
+  const [selectedStudentForEdit, setSelectedStudentForEdit] = useState<any>(null)
 
   // Fetch pending OD requests for this teacher
   const fetchPendingODRequests = async (teacherId: string) => {
@@ -387,25 +396,6 @@ export default function TeacherDashboard() {
             
             // Mark this start as processed so it doesn't start again
             setProcessedSessions(prev => new Set(prev).add(startKey))
-
-            // Send QR code email
-            try {
-              const emailResponse = await fetch("/api/teacher/send-session-email", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                  sessionId: newSession.id,
-                  teacherEmail: user.email 
-                }),
-              })
-
-              const emailResult = await emailResponse.json()
-              if (emailResult.success) {
-                console.log("✅ QR code email sent for auto-started session")
-              }
-            } catch (emailError) {
-              console.error("⚠️ Error sending email for auto-started session:", emailError)
-            }
           } catch (error) {
             console.error("❌ Error in auto-start logic:", error)
           }
@@ -628,33 +618,7 @@ export default function TeacherDashboard() {
 
       console.log("✅ Session created successfully:", session)
       setActiveSession(session)
-
-      // Send QR code email to teacher
-      try {
-        console.log("📧 Sending QR code email to teacher...")
-        const emailResponse = await fetch("/api/teacher/send-session-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            sessionId: session.id,
-            teacherEmail: user.email 
-          }),
-        })
-
-        const emailResult = await emailResponse.json()
-        console.log("📨 Email API Response:", emailResult)
-        
-        if (emailResult.success) {
-          console.log("✅ QR code email sent successfully")
-          alert(`✅ Session started!\n\nQR code has been sent to:\n${user.email}\n\nMessage ID: ${emailResult.messageId || 'Processing'}`)
-        } else {
-          console.warn("⚠️ Email send failed:", emailResult)
-          alert(`⚠️ Session started but email failed:\n\n${emailResult.error}\n${emailResult.details || ''}\n\nPlease check your email credentials.`)
-        }
-      } catch (emailError) {
-        console.error("❌ Error sending email:", emailError)
-        alert(`⚠️ Session started but failed to send email.\n\nError: ${emailError instanceof Error ? emailError.message : 'Unknown error'}`)
-      }
+      alert(`✅ Session started!\n\nSession Code: ${session.session_code}`)
     } catch (error) {
       console.error("❌ Error starting session:", error)
       console.error("Error type:", typeof error)
@@ -757,45 +721,25 @@ export default function TeacherDashboard() {
 
     setLoadingStudents(true)
     try {
-      const { data, error } = await supabase
-        .from("students")
-        .select(`
-          id,
-          student_id,
-          name,
-          email,
-          phone,
-          address,
-          parent_phone,
-          parent_name,
-          class_id,
-          status
-        `)
-        .eq("class_id", classId)
-        .order("student_id", { ascending: true })
+      const response = await fetch(`/api/teacher/students?classId=${classId}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("❌ API error fetching students:", errorData)
+        alert(`Failed to fetch students: ${errorData.error || 'Unknown error'}`)
+        setStudents([])
+        return
+      }
 
-      if (error) {
-        console.error("❌ Supabase error fetching students:", error)
-        console.error("Error details:", JSON.stringify(error, null, 2))
-        console.error("Error code:", error.code)
-        console.error("Error message:", error.message)
-        alert(`Failed to fetch students: ${error.message || 'Unknown error'}`)
-      } else if (data) {
-        console.log("✅ Raw student data from Supabase:", data)
-        // Transform the data - using actual database columns
-        const formattedStudents = data.map((student: any) => ({
-          id: student.id,
-          user_id: student.id, // Using student ID as user_id for compatibility
-          class_id: student.class_id,
-          roll_number: student.student_id, // Using student_id as roll_number
-          name: student.name,
-          email: student.email,
-          phone: student.phone || "",
-          department: "", // Not in current schema
-          year: "", // Not in current schema
-        }))
-        setStudents(formattedStudents)
-        console.log("✅ Formatted students:", formattedStudents)
+      const result = await response.json()
+      
+      if (result.success) {
+        console.log("✅ Fetched students from API:", result.students)
+        setStudents(result.students)
+      } else {
+        console.error("❌ API error:", result.error)
+        alert(`Failed to fetch students: ${result.error || 'Unknown error'}`)
+        setStudents([])
       }
     } catch (error) {
       console.error("❌ Caught error fetching students:", error)
@@ -813,6 +757,84 @@ export default function TeacherDashboard() {
       fetchStudentsByClass(classId)
     } else {
       setStudents([])
+    }
+  }
+
+  // Fetch attendance records for a session
+  const fetchAttendanceRecords = async (sessionId: string) => {
+    setLoadingAttendanceRecords(true)
+    try {
+      const response = await fetch(`/api/teacher/update-attendance?sessionId=${sessionId}`)
+      if (!response.ok) {
+        console.error('Failed to fetch attendance records')
+        return
+      }
+      const result = await response.json()
+      if (result.success) {
+        setAttendanceRecords(result.records || [])
+        setEditAttendanceSessionId(sessionId)
+      }
+    } catch (error) {
+      console.error('Error fetching attendance records:', error)
+    } finally {
+      setLoadingAttendanceRecords(false)
+    }
+  }
+
+  // Update attendance for a student
+  const handleUpdateAttendance = async (status: string, notes: string) => {
+    if (!selectedStudentForEdit || !editAttendanceSessionId) return
+
+    try {
+      const response = await fetch('/api/teacher/update-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: editAttendanceSessionId,
+          studentId: selectedStudentForEdit.id,
+          status,
+          notes,
+          teacherId: user?.id,
+        }),
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        alert(`Error: ${result.error}`)
+        return
+      }
+
+      // Update local attendance records
+      const updatedRecords = attendanceRecords.map((record: any) => {
+        if (record.student_id === selectedStudentForEdit.id) {
+          return {
+            ...record,
+            status,
+            notes,
+            updated_at: new Date().toISOString(),
+          }
+        }
+        return record
+      })
+
+      // Add new record if it doesn't exist
+      if (!updatedRecords.find((r: any) => r.student_id === selectedStudentForEdit.id)) {
+        updatedRecords.push({
+          id: result.record.id,
+          student_id: selectedStudentForEdit.id,
+          status,
+          notes,
+          students: selectedStudentForEdit,
+          updated_at: new Date().toISOString(),
+        })
+      }
+
+      setAttendanceRecords(updatedRecords)
+      setShowAttendanceEditDialog(false)
+      setSelectedStudentForEdit(null)
+    } catch (error) {
+      console.error('Error updating attendance:', error)
+      alert('Failed to update attendance')
     }
   }
 
@@ -1137,14 +1159,26 @@ export default function TeacherDashboard() {
                       </div>
                     )}
                   </div>
-                  <Button
-                    className="w-full text-sm sm:text-base"
-                    variant="destructive"
-                    onClick={handleEndSession}
-                    disabled={loading}
-                  >
-                    End Session
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1 text-sm sm:text-base"
+                      variant="outline"
+                      onClick={() => fetchAttendanceRecords(activeSession.id)}
+                      disabled={loading || loadingAttendanceRecords}
+                    >
+                      <Edit2 className="mr-2 h-4 w-4" />
+                      <span className="hidden sm:inline">Edit Attendance</span>
+                      <span className="sm:hidden">Edit</span>
+                    </Button>
+                    <Button
+                      className="flex-1 text-sm sm:text-base"
+                      variant="destructive"
+                      onClick={handleEndSession}
+                      disabled={loading}
+                    >
+                      End Session
+                    </Button>
+                  </div>
                 </>
               )}
             </CardContent>
@@ -1783,7 +1817,102 @@ export default function TeacherDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Transfer Sessions Section */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+              <span>🔄</span>
+              Transfer Sessions
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Transfer your sessions to other teachers when you can't attend class
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-700 mb-4">
+              If you're unable to attend class, you can transfer your active sessions to any teacher who teaches the same class. The original teacher name remains recorded for audit purposes.
+            </p>
+            <Button
+              onClick={() => router.push('/teacher/manage-transfers')}
+              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto text-sm"
+            >
+              <span>📋</span>
+              <span className="ml-2">Manage Session Transfers</span>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Attendance Records Section */}
+        {attendanceRecords.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">Edit Attendance Records</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Mark students present, absent, late, or on duty
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {students.length > 0 ? (
+                  students.map((student) => {
+                    const record = attendanceRecords.find(
+                      (r: any) => r.student_id === student.id
+                    )
+                    const status = record?.status || 'absent'
+                    const statusColors: Record<string, string> = {
+                      present: 'bg-green-100 text-green-800',
+                      absent: 'bg-red-100 text-red-800',
+                      late: 'bg-yellow-100 text-yellow-800',
+                      on_duty: 'bg-blue-100 text-blue-800',
+                    }
+
+                    return (
+                      <div
+                        key={student.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{student.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{student.roll_number}</p>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Badge className={statusColors[status]}>
+                            {status === 'on_duty' ? 'OD' : status.charAt(0).toUpperCase() + status.slice(1)}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedStudentForEdit(student)
+                              setShowAttendanceEditDialog(true)
+                            }}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p className="text-sm">Select a class to view students</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </main>
+
+      {/* Attendance Edit Dialog */}
+      <AttendanceEditDialog
+        open={showAttendanceEditDialog}
+        onOpenChange={setShowAttendanceEditDialog}
+        student={selectedStudentForEdit}
+        onSubmit={handleUpdateAttendance}
+        loading={loadingAttendanceRecords}
+      />
     </div>
   )
 }

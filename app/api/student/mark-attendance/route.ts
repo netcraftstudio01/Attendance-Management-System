@@ -52,6 +52,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get the current handler of the session (for recording who marked the attendance)
+    const currentTeacherId = session.transferred_to || session.teacher_id
+    
+    // Fetch teacher info for reference
+    const { data: teacherData } = await supabase
+      .from("users")
+      .select("id, name, email")
+      .eq("id", currentTeacherId)
+      .single()
+
     // Verify OTP was verified
     const { data: otpRecord, error: otpError } = await supabase
       .from("attendance_otps")
@@ -83,7 +93,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Mark attendance
+    // Mark attendance with teacher info (show who marked it)
     const { data: attendanceRecord, error: recordError } = await supabase
       .from("attendance_records")
       .insert({
@@ -91,7 +101,8 @@ export async function POST(request: NextRequest) {
         student_id: student.id,
         status: "present",
         otp_verified: true,
-        marked_at: new Date().toISOString()
+        marked_at: new Date().toISOString(),
+        marked_by: teacherData?.name || "Teacher"
       })
       .select()
       .single()
