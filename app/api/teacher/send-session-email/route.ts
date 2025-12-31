@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Fetch class details
     const { data: classData, error: classError } = await supabase
       .from('classes')
-      .select('id, class_name, section, year')
+      .select('id, class_name, section, year, class_email')
       .eq('id', session.class_id)
       .single()
 
@@ -253,10 +253,22 @@ export async function POST(request: NextRequest) {
   </body>
 </html>`
 
-    // Send email with QR code attachment
+    // Send email with QR code attachment to teacher and class
+    // Build recipients list
+    const recipients: string[] = []
+    if (teacher.email) recipients.push(teacher.email)
+    if (classData?.class_email) recipients.push(classData.class_email)
+
+    if (recipients.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid email recipients found' },
+        { status: 400 }
+      )
+    }
+
     const mailOptions = {
       from: `"KPRCAS Attendance System" <${process.env.GMAIL_USER}>`,
-      to: teacher.email,
+      to: recipients.join(','),
       subject: `Attendance Session Active - ${classData?.class_name || 'Class'} ${subjectData?.subject_code || 'Subject'}`,
       html: htmlTemplate,
       attachments: [
@@ -279,12 +291,14 @@ export async function POST(request: NextRequest) {
       
       console.log('✅ Session email sent successfully!')
       console.log('📧 Email ID:', info.messageId)
-      console.log('📨 To:', teacher.email)
+      console.log('📨 To:', recipients.join(', '))
 
       return NextResponse.json({
         success: true,
         message: 'Session email sent successfully',
         teacher_email: teacher.email,
+        class_email: classData?.class_email,
+        recipients: recipients,
         session_code: session.session_code,
         messageId: info.messageId
       })
@@ -300,7 +314,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error: 'Failed to send email',
           details: emailError instanceof Error ? emailError.message : 'Unknown error',
-          teacher_email: teacher.email
+          teacher_email: teacher.email,
+          class_email: classData?.class_email
         },
         { status: 500 }
       )
