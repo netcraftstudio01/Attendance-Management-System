@@ -83,7 +83,8 @@ export async function POST(request: NextRequest) {
     console.log('🎯 Using Gmail account:', process.env.GMAIL_USER)
     console.log('📝 Session Code:', session.session_code)
     console.log('📚 Class:', classData?.class_name)
-    console.log('📖 Subject:', subjectData?.subject_code)
+    console.log('� Class Email:', classData?.class_email || 'NOT SET')
+    console.log('�📖 Subject:', subjectData?.subject_code)
 
     // Generate QR code as buffer for attachment
     let qrCodeBuffer: Buffer
@@ -258,6 +259,11 @@ export async function POST(request: NextRequest) {
     const recipients: string[] = []
     if (teacher.email) recipients.push(teacher.email)
     if (classData?.class_email) recipients.push(classData.class_email)
+
+    console.log('📬 Email Recipients Being Built:')
+    console.log('  - Teacher Email:', teacher.email ? '✅ ' + teacher.email : '❌ NOT AVAILABLE')
+    console.log('  - Class Email:', classData?.class_email ? '✅ ' + classData.class_email : '❌ NOT SET')
+    console.log('  - Final Recipients List:', recipients)
 
     if (recipients.length === 0) {
       return NextResponse.json(
