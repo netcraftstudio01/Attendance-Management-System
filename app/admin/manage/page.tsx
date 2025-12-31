@@ -117,6 +117,9 @@ export default function AdminManagementPage() {
   const [user, setUser] = useState<User | null>(null)
   const [activeTab, setActiveTab] = useState<"classes" | "subjects" | "teachers" | "assignments" | "students">("classes")
   
+  // UI states for class-based student view
+  const [expandedClass, setExpandedClass] = useState<string | null>(null)
+  
   // Data states
   const [classes, setClasses] = useState<Class[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -1072,68 +1075,114 @@ export default function AdminManagementPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {students.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
-                        No students found. Click &quot;Add Student&quot; or &quot;Import Excel&quot; to add students.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    students.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-medium">{student.student_id}</TableCell>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>{student.email}</TableCell>
-                        <TableCell>
-                          {student.classes?.class_name} {student.classes?.section || ""}
-                          {student.classes?.year ? ` (Year ${student.classes.year})` : ""}
-                        </TableCell>
-                        <TableCell>{student.phone || "-"}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            student.status === "active" 
-                              ? "bg-green-100 text-green-800" 
-                              : "bg-red-100 text-red-800"
-                          }`}>
-                            {student.status}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(student)}
-                            title="Edit Student"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleStudentDelete(student.id)}
-                            title="Delete Student"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+              {students.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  No students found. Click &quot;Add Student&quot; or &quot;Import Excel&quot; to add students.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(() => {
+                    // Group students by class
+                    const groupedByClass: { [classId: string]: { class: any; students: Student[] } } = {}
+                    
+                    students.forEach(student => {
+                      const classId = student.class_id || "unassigned"
+                      if (!groupedByClass[classId]) {
+                        groupedByClass[classId] = {
+                          class: student.classes || { class_name: "Unassigned", section: "", year: null },
+                          students: []
+                        }
+                      }
+                      groupedByClass[classId].students.push(student)
+                    })
+
+                    // Sort classes by name
+                    const sortedClasses = Object.entries(groupedByClass).sort((a, b) => {
+                      const nameA = a[1].class.class_name || ""
+                      const nameB = b[1].class.class_name || ""
+                      return nameA.localeCompare(nameB)
+                    })
+
+                    return sortedClasses.map(([classId, { class: classData, students: classStudents }]) => (
+                      <div key={classId} className="border rounded-lg overflow-hidden">
+                        {/* Class Header - Expandable */}
+                        <button
+                          onClick={() => setExpandedClass(expandedClass === classId ? null : classId)}
+                          className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 px-4 py-3 flex items-center justify-between transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="text-lg font-semibold text-blue-900">
+                              {classData.class_name} {classData.section ? `(${classData.section})` : ""} 
+                              {classData.year ? ` - Year ${classData.year}` : ""}
+                            </div>
+                            <span className="inline-block bg-blue-200 text-blue-900 px-3 py-1 rounded-full text-sm font-medium">
+                              {classStudents.length} student{classStudents.length !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                          <div className="text-blue-900">
+                            {expandedClass === classId ? "▼" : "▶"}
+                          </div>
+                        </button>
+
+                        {/* Students List - Expandable */}
+                        {expandedClass === classId && (
+                          <div className="bg-white">
+                            <Table>
+                              <TableHeader>
+                                <TableRow className="bg-gray-50 border-t">
+                                  <TableHead>Student ID</TableHead>
+                                  <TableHead>Name</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Phone</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {classStudents.map((student) => (
+                                  <TableRow key={student.id} className="hover:bg-gray-50">
+                                    <TableCell className="font-medium">{student.student_id}</TableCell>
+                                    <TableCell>{student.name}</TableCell>
+                                    <TableCell>{student.email}</TableCell>
+                                    <TableCell>{student.phone || "-"}</TableCell>
+                                    <TableCell>
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        student.status === "active" 
+                                          ? "bg-green-100 text-green-800" 
+                                          : "bg-red-100 text-red-800"
+                                      }`}>
+                                        {student.status}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-right space-x-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openEditDialog(student)}
+                                        title="Edit Student"
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleStudentDelete(student.id)}
+                                        title="Delete Student"
+                                      >
+                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </div>
                     ))
-                  )}
-                </TableBody>
-              </Table>
+                  })()}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
