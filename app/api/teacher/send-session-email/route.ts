@@ -129,9 +129,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('📧 Preparing to send email to:', teacher.email)
-    console.log('🎯 Using Gmail account:', process.env.GMAIL_USER)
-
+    // Create transporter
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -139,6 +137,9 @@ export async function POST(request: NextRequest) {
         pass: process.env.GMAIL_APP_PASSWORD,
       },
     })
+
+    console.log('📧 Preparing to send email to:', teacher.email)
+    console.log('🎯 Using Gmail account:', process.env.GMAIL_USER)
 
     // Email HTML template
     const htmlTemplate = `<!DOCTYPE html>
@@ -272,44 +273,87 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const mailOptions = {
-      from: `"KPRCAS Attendance System" <${process.env.GMAIL_USER}>`,
-      to: recipients.join(','),
-      subject: `Attendance Session Active - ${classData?.class_name || 'Class'} ${subjectData?.subject_code || 'Subject'}`,
-      html: htmlTemplate,
-      attachments: [
-        {
-          filename: 'qrcode.png',
-          content: qrCodeBuffer,
-          cid: 'qrcode'
-        }
-      ]
-    }
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    })
 
     try {
-      console.log('🚀 Sending email with options:', {
-        from: mailOptions.from,
-        to: mailOptions.to,
-        subject: mailOptions.subject
-      })
+      const sentResults = []
       
-      const info = await transporter.sendMail(mailOptions)
+      // Send email to teacher
+      if (teacher.email) {
+        console.log('📧 Sending email to teacher:', teacher.email)
+        const teacherMailOptions = {
+          from: `"KPRCAS Attendance System" <${process.env.GMAIL_USER}>`,
+          to: teacher.email,
+          subject: `Attendance Session Active - ${classData?.class_name || 'Class'} ${subjectData?.subject_code || 'Subject'}`,
+          html: htmlTemplate,
+          attachments: [
+            {
+              filename: 'qrcode.png',
+              content: qrCodeBuffer,
+              cid: 'qrcode'
+            }
+          ]
+        }
+        
+        try {
+          const teacherInfo = await transporter.sendMail(teacherMailOptions)
+          console.log('✅ Teacher email sent successfully!')
+          console.log('📧 Teacher Email ID:', teacherInfo.messageId)
+          sentResults.push({ to: teacher.email, status: 'success', messageId: teacherInfo.messageId })
+        } catch (teacherEmailError) {
+          console.error('❌ Error sending email to teacher:', teacherEmailError)
+          sentResults.push({ to: teacher.email, status: 'failed', error: teacherEmailError instanceof Error ? teacherEmailError.message : 'Unknown error' })
+        }
+      }
       
-      console.log('✅ Session email sent successfully!')
-      console.log('📧 Email ID:', info.messageId)
-      console.log('📨 To:', recipients.join(', '))
+      // Send email to class separately
+      if (classData?.class_email) {
+        console.log('📧 Sending email to class:', classData.class_email)
+        const classMailOptions = {
+          from: `"KPRCAS Attendance System" <${process.env.GMAIL_USER}>`,
+          to: classData.class_email,
+          subject: `Attendance Session Active - ${classData?.class_name || 'Class'} ${subjectData?.subject_code || 'Subject'}`,
+          html: htmlTemplate,
+          attachments: [
+            {
+              filename: 'qrcode.png',
+              content: qrCodeBuffer,
+              cid: 'qrcode'
+            }
+          ]
+        }
+        
+        try {
+          const classInfo = await transporter.sendMail(classMailOptions)
+          console.log('✅ Class email sent successfully!')
+          console.log('📧 Class Email ID:', classInfo.messageId)
+          sentResults.push({ to: classData.class_email, status: 'success', messageId: classInfo.messageId })
+        } catch (classEmailError) {
+          console.error('❌ Error sending email to class:', classEmailError)
+          sentResults.push({ to: classData.class_email, status: 'failed', error: classEmailError instanceof Error ? classEmailError.message : 'Unknown error' })
+        }
+      }
+
+      console.log('📨 All email sending attempts completed')
+      console.log('Results:', sentResults)
 
       return NextResponse.json({
         success: true,
-        message: 'Session email sent successfully',
+        message: 'Session emails sent successfully',
         teacher_email: teacher.email,
         class_email: classData?.class_email,
         recipients: recipients,
         session_code: session.session_code,
-        messageId: info.messageId
+        sent_results: sentResults
       })
     } catch (emailError) {
-      console.error('❌ Error sending email:', emailError)
+      console.error('❌ Critical error in email sending process:', emailError)
       console.error('Error details:', {
         message: emailError instanceof Error ? emailError.message : 'Unknown error',
         code: emailError instanceof Error && 'code' in emailError ? (emailError as any).code : undefined
