@@ -408,9 +408,14 @@ export default function TeacherDashboard() {
                 }),
               })
 
+              console.log("🌐 Auto-start Email API Status:", emailResponse.status)
               const emailResult = await emailResponse.json()
+              console.log("📨 Auto-start Email API Response:", emailResult)
               if (emailResult.success) {
                 console.log("✅ QR code email sent for auto-started session")
+                console.log("📬 Recipients:", emailResult.recipients)
+              } else {
+                console.warn("⚠️ Email send failed for auto-started session:", emailResult)
               }
             } catch (emailError) {
               console.error("⚠️ Error sending email for auto-started session:", emailError)
@@ -641,6 +646,7 @@ export default function TeacherDashboard() {
       // Send QR code email to teacher
       try {
         console.log("📧 Sending QR code email to teacher...")
+        console.log("🔗 Sending to session:", session.id)
         const emailResponse = await fetch("/api/teacher/send-session-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -650,12 +656,16 @@ export default function TeacherDashboard() {
           }),
         })
 
+        console.log("🌐 Email API Status:", emailResponse.status)
         const emailResult = await emailResponse.json()
         console.log("📨 Email API Response:", emailResult)
         
         if (emailResult.success) {
           console.log("✅ QR code email sent successfully")
-          alert(`✅ Session started!\n\nQR code has been sent to:\n${user.email}`)
+          console.log("📬 Recipients:", emailResult.recipients)
+          console.log("📧 Teacher Email:", emailResult.teacher_email)
+          console.log("📧 Class Email:", emailResult.class_email)
+          alert(`✅ Session started!\n\nQR code has been sent to:\n${emailResult.recipients?.join(', ')}`)
         } else {
           console.warn("⚠️ Email send failed:", emailResult)
           alert(`✅ Session started!\n\nSession Code: ${session.session_code}`)
