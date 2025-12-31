@@ -148,13 +148,22 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { adminId, department, classId, class_name, section, year } = body
+    const { adminId, department, classId, class_name, section, year, class_email } = body
 
     console.log('✏️ Updating class:', { adminId, department, classId, class_name, section, year })
 
     if (!adminId || !classId) {
       return NextResponse.json(
         { error: 'adminId and classId are required' },
+        { status: 400 }
+      )
+    }
+
+    // Prevent updating class_email after creation
+    if (class_email !== undefined && class_email !== null) {
+      console.warn('⚠️ Attempt to update class_email blocked:', { classId, class_email })
+      return NextResponse.json(
+        { error: 'Class email cannot be changed after creation. It is set only at class creation time.' },
         { status: 400 }
       )
     }

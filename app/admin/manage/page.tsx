@@ -1445,9 +1445,13 @@ export default function AdminManagementPage() {
                         defaultValue={(selectedItem as Class)?.class_email}
                         placeholder="e.g., cs-a@kprcas.ac.in"
                         required
+                        disabled={dialogMode === "edit"}
+                        readOnly={dialogMode === "edit"}
+                        className={dialogMode === "edit" ? "bg-muted cursor-not-allowed" : ""}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         QR codes and session info will be sent to this email for all teachers in this class
+                        {dialogMode === "edit" && " (Set at creation, cannot be changed)"}
                       </p>
                     </div>
                   </div>
