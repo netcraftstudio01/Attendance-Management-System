@@ -130,35 +130,6 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Class created:', data)
 
-    // Send QR code email to class email
-    if (class_email && data?.[0]) {
-      try {
-        const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/admin/send-class-qr-email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            classEmail: class_email,
-            className: class_name,
-            section: section || null,
-            year: year || null,
-            department: department || null
-          })
-        })
-
-        const emailResult = await emailResponse.json()
-        
-        if (emailResult.success) {
-          console.log(`✅ QR code email sent to ${class_email}`)
-        } else {
-          console.warn(`⚠️ Failed to send QR code email to ${class_email}:`, emailResult.error)
-          // Don't fail the class creation if email fails
-        }
-      } catch (emailError) {
-        console.error(`⚠️ Error sending QR code email to ${class_email}:`, emailError)
-        // Don't fail the class creation if email fails
-      }
-    }
-
     return NextResponse.json({
       success: true,
       message: 'Class created successfully',
