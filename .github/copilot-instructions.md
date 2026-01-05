@@ -34,7 +34,7 @@ Open `lib/supabase.ts` to see how the client is created and to find the exact en
 
 - Component conventions: many files are client components—look for "use client" at top. Client pages do auth checks via `localStorage` and call Supabase in `useEffect`.
 - Supabase queries: prefer the existing `.select(`...`)` with nested relationship syntax and `.eq(...)` style filters. When transforming results, code expects nested objects like `assignment.classes.class_name` or `session.classes.class_name`.
-- Error handling: current pattern uses `console.error(...)` + user-facing `alert(...)`. Preserve that style when adding fixes unless adding structured logging.
+- Error handling: uses `console.error(...)` and `console.log(...)` for all feedback. No alert() popups (removed for cleaner UX).
 - UI components: reuse `components/ui/*` primitives (Button, Card, Dialog, Input). Keep visual parity.
 - Path alias: `@/*` maps to repo root — use it in imports (`@/lib/supabase`, `@/components/...`).
 

@@ -174,11 +174,11 @@ export default function AdminODApprovalsPage() {
         // Refresh OD requests
         await fetchODRequests(user?.id!);
       } else {
-        alert('Failed to process OD request');
+        console.log('Failed to process OD request');
       }
     } catch (error) {
       console.error('Error processing OD request:', error);
-      alert('An error occurred');
+      console.log('An error occurred');
     } finally {
       setActionLoading(null);
     }

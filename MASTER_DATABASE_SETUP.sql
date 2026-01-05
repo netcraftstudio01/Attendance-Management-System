@@ -115,8 +115,7 @@ CREATE TABLE IF NOT EXISTS teacher_subjects (
   start_time TIME,
   end_time TIME,
   auto_session_enabled BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(teacher_id, class_id, subject_id)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 
@@ -1577,4 +1576,15 @@ SELECT '✅ Migration complete: Duplicates removed and unique constraints create
 ALTER TABLE classes ADD COLUMN IF NOT EXISTS class_email TEXT;
 
 SELECT '✅ Added class_email column to classes table' as migration_status;
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- MIGRATION: Remove UNIQUE constraint on teacher_subjects
+-- ═══════════════════════════════════════════════════════════════════════
+-- Purpose: Allow one teacher to have multiple time slots on same class/subject
+-- Example: Teacher A can teach Class 1, Subject 1 on Monday 9-10 AM AND 2-3 PM
+-- Date: January 6, 2026
+
+DROP CONSTRAINT IF EXISTS teacher_subjects_teacher_id_class_id_subject_id_key ON teacher_subjects;
+
+SELECT '✅ Removed UNIQUE constraint - Multiple time slots per teacher now allowed' as migration_status;
 -- ═══════════════════════════════════════════════════════════════════════ --

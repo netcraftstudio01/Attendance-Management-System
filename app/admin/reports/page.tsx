@@ -41,8 +41,8 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <Button onClick={() => alert('Daily reports will be added soon')} className="w-full">Daily Report</Button>
-              <Button onClick={() => alert('Monthly reports will be added soon')} className="w-full">Monthly Report</Button>
+              <Button onClick={() => console.log('Daily reports will be added soon')} className="w-full">Daily Report</Button>
+              <Button onClick={() => console.log('Monthly reports will be added soon')} className="w-full">Monthly Report</Button>
             </div>
           </CardContent>
         </Card>
