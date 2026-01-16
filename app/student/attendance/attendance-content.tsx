@@ -77,36 +77,36 @@ export function AttendanceContent({ initialSessionCode = "" }: AttendanceContent
 
   // Handle zoom in
   const handleZoomIn = async () => {
+    const newZoom = Math.min(zoom + 0.5, 4)
+    setZoom(newZoom)
+    
     if (streamRef) {
       const videoTrack = streamRef.getVideoTracks()[0]
-      const settings = videoTrack.getSettings()
-      const currentZoom = settings.zoom || 1
-      const maxZoom = videoTrack.getCapabilities().zoom?.max || 4
-      const newZoom = Math.min(currentZoom + 0.5, maxZoom)
-      
       try {
+        // Try hardware zoom first
         await videoTrack.applyConstraints({ advanced: [{ zoom: newZoom }] })
-        setZoom(newZoom)
+        console.log("Hardware zoom applied:", newZoom)
       } catch (err) {
-        console.error("Zoom error:", err)
+        // Fallback to CSS zoom if hardware zoom not supported
+        console.log("Hardware zoom not supported, using CSS zoom")
       }
     }
   }
 
   // Handle zoom out
   const handleZoomOut = async () => {
+    const newZoom = Math.max(zoom - 0.5, 1)
+    setZoom(newZoom)
+    
     if (streamRef) {
       const videoTrack = streamRef.getVideoTracks()[0]
-      const settings = videoTrack.getSettings()
-      const currentZoom = settings.zoom || 1
-      const minZoom = videoTrack.getCapabilities().zoom?.min || 1
-      const newZoom = Math.max(currentZoom - 0.5, minZoom)
-      
       try {
+        // Try hardware zoom first
         await videoTrack.applyConstraints({ advanced: [{ zoom: newZoom }] })
-        setZoom(newZoom)
+        console.log("Hardware zoom applied:", newZoom)
       } catch (err) {
-        console.error("Zoom error:", err)
+        // Fallback to CSS zoom if hardware zoom not supported
+        console.log("Hardware zoom not supported, using CSS zoom")
       }
     }
   }
@@ -239,33 +239,33 @@ export function AttendanceContent({ initialSessionCode = "" }: AttendanceContent
               </form>
             ) : (
               <div className="space-y-4">
-                <div className="relative bg-black rounded-lg overflow-hidden">
+                <div className="relative bg-black rounded-lg" style={{ height: '384px' }}>
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
-                    className="w-full h-96 object-cover"
+                    className="w-full h-full object-cover rounded-lg"
                     style={{
                       transform: `scale(${zoom})`
                     }}
                   />
                   
                   {/* Scanning overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="absolute inset-0 flex items-center justify-center rounded-lg pointer-events-none">
                     <div className="w-64 h-64 border-2 border-yellow-400 rounded-lg opacity-75"></div>
                   </div>
 
                   {/* Zoom level indicator */}
-                  <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                  <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-semibold pointer-events-none">
                     Zoom: {zoom.toFixed(1)}x
                   </div>
 
-                  {/* Camera Controls - Floating on bottom left */}
-                  <div className="absolute bottom-4 left-4 right-4 flex gap-2 justify-start">
+                  {/* Camera Controls - Floating buttons */}
+                  <div className="absolute bottom-4 left-4 flex gap-2 z-10 pointer-events-auto">
                     <button
                       onClick={handleZoomOut}
                       disabled={zoom <= 1}
-                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-full w-16 h-16 flex items-center justify-center shadow-xl text-lg"
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-full w-16 h-16 flex items-center justify-center shadow-2xl text-lg transition-all"
                       title="Zoom Out"
                     >
                       <ZoomOut className="h-8 w-8" />
@@ -273,7 +273,7 @@ export function AttendanceContent({ initialSessionCode = "" }: AttendanceContent
                     
                     <button
                       onClick={handleZoomIn}
-                      className="bg-green-600 hover:bg-green-700 text-white font-bold rounded-full w-16 h-16 flex items-center justify-center shadow-xl text-lg"
+                      className="bg-green-600 hover:bg-green-700 text-white font-bold rounded-full w-16 h-16 flex items-center justify-center shadow-2xl text-lg transition-all"
                       title="Zoom In"
                     >
                       <ZoomIn className="h-8 w-8" />
