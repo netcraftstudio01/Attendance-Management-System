@@ -239,6 +239,7 @@ export function AttendanceContent({ initialSessionCode = "" }: AttendanceContent
               </form>
             ) : (
               <div className="space-y-4">
+                {/* Camera Container with positioned buttons on top */}
                 <div className="relative bg-black rounded-lg" style={{ height: '384px' }}>
                   <video
                     ref={videoRef}
@@ -256,29 +257,30 @@ export function AttendanceContent({ initialSessionCode = "" }: AttendanceContent
                   </div>
 
                   {/* Zoom level indicator */}
-                  <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-semibold pointer-events-none">
+                  <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-semibold pointer-events-none z-20">
                     Zoom: {zoom.toFixed(1)}x
                   </div>
+                </div>
 
-                  {/* Camera Controls - Floating buttons */}
-                  <div className="absolute bottom-4 left-4 flex gap-2 z-10 pointer-events-auto">
-                    <button
-                      onClick={handleZoomOut}
-                      disabled={zoom <= 1}
-                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-full w-16 h-16 flex items-center justify-center shadow-2xl text-lg transition-all"
-                      title="Zoom Out"
-                    >
-                      <ZoomOut className="h-8 w-8" />
-                    </button>
-                    
-                    <button
-                      onClick={handleZoomIn}
-                      className="bg-green-600 hover:bg-green-700 text-white font-bold rounded-full w-16 h-16 flex items-center justify-center shadow-2xl text-lg transition-all"
-                      title="Zoom In"
-                    >
-                      <ZoomIn className="h-8 w-8" />
-                    </button>
-                  </div>
+                {/* Zoom Buttons - Outside video container for guaranteed visibility */}
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={handleZoomOut}
+                    disabled={zoom <= 1}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-full w-20 h-20 flex items-center justify-center shadow-2xl transition-all text-lg"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="h-10 w-10" />
+                  </button>
+                  
+                  <button
+                    onClick={handleZoomIn}
+                    disabled={zoom >= 4}
+                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-full w-20 h-20 flex items-center justify-center shadow-2xl transition-all text-lg"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="h-10 w-10" />
+                  </button>
                 </div>
 
                 {/* Below Camera Controls */}
