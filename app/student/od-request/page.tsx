@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Check } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -63,17 +63,14 @@ export default function ODRequestPage() {
   const [odRequests, setOdRequests] = useState<ODRequest[]>([]);
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Step 1: Handle email submission
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage(null);
 
     try {
       if (!emailInput.trim()) {
-        setMessage({ type: 'error', text: 'Please enter your email' });
         setLoading(false);
         return;
       }
@@ -82,7 +79,6 @@ export default function ODRequestPage() {
 
       // Validate email domain
       if (!emailLower.endsWith('@kprcas.ac.in') && !emailLower.endsWith('@gmail.com')) {
-        setMessage({ type: 'error', text: 'Only @kprcas.ac.in and @gmail.com emails are allowed' });
         setLoading(false);
         return;
       }
@@ -101,7 +97,6 @@ export default function ODRequestPage() {
         .limit(1);
 
       if (studentError || !students || students.length === 0) {
-        setMessage({ type: 'error', text: 'Student not found. Please check your email.' });
         setLoading(false);
         return;
       }
@@ -119,8 +114,8 @@ export default function ODRequestPage() {
       });
 
       // Store email for dashboard
-      localStorage.setItem('studentEmail', student.email);      setClassId(student.class_id);
-      setMessage({ type: 'success', text: `Welcome ${student.name}! Loading OD form...` });
+      localStorage.setItem('studentEmail', student.email);
+      setClassId(student.class_id);
 
       // Fetch teachers for this class
       const { data: teacherSubjectsData } = await supabase
@@ -172,14 +167,10 @@ export default function ODRequestPage() {
           : 0
       })));
 
-      // Move to form step after 1 second
-      setTimeout(() => {
-        setStep('form');
-        setMessage(null);
-      }, 1500);
+      // Move to form step
+      setStep('form');
     } catch (error) {
       console.error('Error during email submission:', error);
-      setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -189,24 +180,20 @@ export default function ODRequestPage() {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage(null);
 
     try {
       if (!studentData) {
-        setMessage({ type: 'error', text: 'Student data not found. Please re-enter your email.' });
         setLoading(false);
         return;
       }
 
       if (!selectedTeacherId || !selectedAdminId || !odStartDate || !odEndDate || !reason.trim()) {
-        setMessage({ type: 'error', text: 'Please fill all required fields' });
         setLoading(false);
         return;
       }
 
       // Validate date range
       if (new Date(odStartDate) > new Date(odEndDate)) {
-        setMessage({ type: 'error', text: 'End date must be after or equal to start date' });
         setLoading(false);
         return;
       }
@@ -231,8 +218,6 @@ export default function ODRequestPage() {
       if (!response.ok) {
         throw new Error(result.error || 'Failed to submit OD request');
       }
-
-      setMessage({ type: 'success', text: 'OD request submitted successfully!' });
 
       // Reset form
       setOdStartDate('');
@@ -265,10 +250,6 @@ export default function ODRequestPage() {
       })));
     } catch (error) {
       console.error('Error submitting OD request:', error);
-      setMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to submit OD request',
-      });
     } finally {
       setLoading(false);
     }
@@ -283,7 +264,6 @@ export default function ODRequestPage() {
     setOdStartDate('');
     setOdEndDate('');
     setReason('');
-    setMessage(null);
   };
 
   const getStatusBadge = (request: ODRequest) => {
@@ -326,23 +306,6 @@ export default function ODRequestPage() {
         {step === 'email' && (
           <Card className="p-8 shadow-lg">
             <h2 className="text-2xl font-semibold text-gray-800 mb-6">Enter Your Email</h2>
-
-            {message && (
-              <div
-                className={`p-4 rounded-lg mb-6 flex items-start gap-3 ${
-                  message.type === 'success'
-                    ? 'bg-green-100 text-green-800 border border-green-300'
-                    : 'bg-red-100 text-red-800 border border-red-300'
-                }`}
-              >
-                {message.type === 'success' ? (
-                  <Check className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                )}
-                <span>{message.text}</span>
-              </div>
-            )}
 
             <form onSubmit={handleEmailSubmit} className="space-y-6">
               <div>
@@ -405,23 +368,6 @@ export default function ODRequestPage() {
             {/* OD Form Card */}
             <Card className="p-8 mb-8 shadow-lg">
               <h2 className="text-2xl font-semibold text-gray-800 mb-6">Submit New OD Request</h2>
-
-              {message && (
-                <div
-                  className={`p-4 rounded-lg mb-6 flex items-start gap-3 ${
-                    message.type === 'success'
-                      ? 'bg-green-100 text-green-800 border border-green-300'
-                      : 'bg-red-100 text-red-800 border border-red-300'
-                  }`}
-                >
-                  {message.type === 'success' ? (
-                    <Check className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  )}
-                  <span>{message.text}</span>
-                </div>
-              )}
 
               <form onSubmit={handleFormSubmit} className="space-y-6">
                 {/* OD Start Date */}
